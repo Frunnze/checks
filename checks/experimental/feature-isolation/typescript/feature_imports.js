@@ -10,6 +10,7 @@ const FEATURES_DIRECTORY = "features";
 const FEATURES_PREFIX = "features.";
 
 const typescript = require(process.argv[2]);
+const sourceFolder = process.argv[3];
 
 function featureChainOf(sourceRoot, filePath) {
   const featuresRoot = path.join(sourceRoot, FEATURES_DIRECTORY);
@@ -46,7 +47,7 @@ function crossingBetween(importer, imported) {
 }
 
 function crossingsIn(filePath) {
-  const sourceRoot = sourceRootOf(filePath);
+  const sourceRoot = sourceRootOf(filePath, sourceFolder);
 
   if (sourceRoot === null) return [];
 

@@ -3,13 +3,13 @@ const path = require("path");
 const { describesNoBehaviour } = require("./stateless_definitions");
 const { definedIn } = require("./definitions");
 
-const SOURCE_DIRECTORY = "src";
 const TESTS_DIRECTORY = "tests";
 const PROPERTY_MARKER = " property";
 const PROPERTY_ASSERTION = "fc.assert(";
 const TEST_CALLS = ["it", "test"];
 
 const typescript = require(process.argv[2]);
+const sourceFolder = process.argv[3];
 
 function scriptKindOf(filePath) {
   return filePath.endsWith(".tsx")
@@ -33,7 +33,7 @@ function packageOf(filePath) {
 
   if (boundary !== -1) return segments.slice(0, boundary).join(path.sep);
 
-  const sourceRoot = segments.lastIndexOf(SOURCE_DIRECTORY);
+  const sourceRoot = segments.lastIndexOf(sourceFolder);
 
   return segments.slice(0, sourceRoot).join(path.sep);
 }

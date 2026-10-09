@@ -1,13 +1,12 @@
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE_ROOT = "src";
 const MODULE_EXTENSIONS = [".ts", ".tsx"];
 const INDEX_MODULES = ["index.ts", "index.tsx"];
 
-function sourceRootOf(filePath) {
+function sourceRootOf(filePath, sourceFolder) {
   const parts = path.resolve(filePath).split(path.sep);
-  const index = parts.lastIndexOf(SOURCE_ROOT);
+  const index = parts.lastIndexOf(sourceFolder);
 
   if (index === -1) return null;
 

@@ -5,9 +5,11 @@ set -e
 echo "pre-commit: property tests in python (one per definition)"
 echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
 
-untested=$(python_files_in $(sources_and_tests "$@") \
-    | "$toolkit_python" "$(dirname "$0")/property_test_coverage.py" \
-    | reportable_findings)
+untested=$(for source_directory in "$@"; do
+    python_files_in $(sources_and_tests "$source_directory") \
+        | "$toolkit_python" "$(dirname "$0")/property_test_coverage.py" \
+        "$(basename "$source_directory")"
+done | reportable_findings)
 
 fail_on_findings "$untested" \
     "nothing states a property about these - give each a hypothesis" \

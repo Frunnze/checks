@@ -13,7 +13,8 @@ for source_directory in "$@"; do
     package=$(package_of "$source_directory")
 
     if ! (cd "$package" && PYTHONPATH="$installed_packages" \
-        "$python_tools/deptry" src --experimental-namespace-package); then
+        "$python_tools/deptry" "$(basename "$source_directory")" \
+        --experimental-namespace-package); then
         echo "pre-commit: the declared dependencies of $package" >&2
         echo "pre-commit: disagree with its imports - drop the unused," >&2
         echo "pre-commit: declare the imported, or configure" >&2

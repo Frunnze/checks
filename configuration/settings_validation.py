@@ -45,7 +45,6 @@ TOOL_OPTIONS: dict[str, frozenset[str]] = {
 }
 SOURCE_SETTING = "source_directories"
 CHECKS_SETTING = "checks"
-SOURCE_DIRECTORY_NAME = "src"
 
 
 class ConfigurationError(ValueError):
@@ -97,10 +96,6 @@ def validate_source_directories(source_directories: object) -> None:
     for source_directory in listed_directories:
         if not isinstance(source_directory, str):
             message = f"{SOURCE_SETTING} must hold strings"
-            raise ConfigurationError(message)
-
-        if Path(source_directory).name != SOURCE_DIRECTORY_NAME:
-            message = f"{source_directory} must be a folder named src"
             raise ConfigurationError(message)
 
 

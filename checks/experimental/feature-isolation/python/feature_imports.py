@@ -5,7 +5,6 @@ from typing import NamedTuple
 
 FEATURES_PACKAGE = "features"
 FEATURES_PREFIX = f"{FEATURES_PACKAGE}."
-FEATURES_DIRECTORY = ("src", "features")
 ESCAPING_LEVEL = 2
 
 PackageChain = tuple[str, ...]
@@ -23,12 +22,15 @@ class FeatureLocation(NamedTuple):
 
 
 class FeatureRoot:
+    def __init__(self, source_folder: str) -> None:
+        self._features_directory = (source_folder, FEATURES_PACKAGE)
+
     def of(self, path: Path) -> FeatureLocation | None:
         parts = path.parts
-        depth = len(FEATURES_DIRECTORY)
+        depth = len(self._features_directory)
 
         for index in range(len(parts) - depth):
-            if parts[index : index + depth] != FEATURES_DIRECTORY:
+            if parts[index : index + depth] != self._features_directory:
                 continue
 
             root = Path(*parts[: index + depth])
@@ -153,6 +155,9 @@ class CrossedFeature:
 
 
 class CrossFeatureImports:
+    def __init__(self, source_folder: str) -> None:
+        self._source_folder = source_folder
+
     def find_in(self, paths: list[str]) -> list[CrossFeatureImport]:
         found: set[CrossFeatureImport] = set()
 
@@ -162,7 +167,7 @@ class CrossFeatureImports:
         return sorted(found)
 
     def _find_in_file(self, path: Path) -> list[CrossFeatureImport]:
-        location = FeatureRoot().of(path)
+        location = FeatureRoot(self._source_folder).of(path)
 
         if location is None or not location.chain:
             return []
@@ -188,9 +193,10 @@ class CrossFeatureImports:
         return found
 
 
+source_folder = sys.argv[1]
 source_paths = sys.stdin.read().split()
 
-for crossing in CrossFeatureImports().find_in(source_paths):
+for crossing in CrossFeatureImports(source_folder).find_in(source_paths):
     _ = sys.stdout.write(
         f"{crossing.path}:{crossing.line_number}: {crossing.imported}\n"
     )

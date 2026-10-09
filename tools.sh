@@ -11,7 +11,8 @@ composer_binary=$(command -v composer || true)
 
 require_binary() {
     if [ ! -x "$1" ]; then
-        echo "pre-commit: $2 is not installed - run ./install.sh in $toolkit" >&2
+        echo "pre-commit: $2 is not installed -" >&2
+        echo "pre-commit: run ./install.sh in $toolkit" >&2
         exit 1
     fi
 }
@@ -222,7 +223,8 @@ require_supported_language() {
     if [ -n "$unsupported_extensions" ]; then
         echo "pre-commit: $source_directory holds $unsupported_extensions" >&2
         echo "pre-commit: files - no check supports that language, so" >&2
-        echo "pre-commit: they go unchecked (supported: $supported_languages)" >&2
+        echo "pre-commit: they go unchecked" >&2
+        echo "pre-commit: (supported: $supported_languages)" >&2
     fi
 
     for language in $supported_languages; do
@@ -247,4 +249,8 @@ package_dockerfiles() {
 generated_configuration() {
     "$toolkit_python" "$toolkit/configuration/tool_configurations.py" \
         "$configuration_file" "$1" "$2" "$project_root"
+}
+
+package_folders() {
+    existing_directories "$(basename "$1")" tests
 }

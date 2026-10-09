@@ -11,9 +11,11 @@ require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 require_feature_layout features "$@"
 
-crossings=$(typescript_files_in "$@" \
-    | "$node_binary" "$(dirname "$0")/feature_imports.js" \
-    "$typescript_module" | reportable_findings)
+crossings=$(for source_directory in "$@"; do
+    typescript_files_in "$source_directory" \
+        | "$node_binary" "$(dirname "$0")/feature_imports.js" \
+        "$typescript_module" "$(basename "$source_directory")"
+done | reportable_findings)
 
 fail_on_findings "$crossings" \
     "these features reach into a sibling - move what they share into" \
@@ -24,7 +26,7 @@ echo "pre-commit: shared ownership (two features or it is not shared)"
 lonely=$(for source_directory in "$@"; do
     typescript_files_in "$source_directory" \
         | "$node_binary" "$(dirname "$0")/shared_usage.js" \
-        "$typescript_module"
+        "$typescript_module" "$(basename "$source_directory")"
 done | reportable_findings)
 
 fail_on_findings "$lonely" \

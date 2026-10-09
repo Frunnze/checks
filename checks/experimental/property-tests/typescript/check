@@ -8,9 +8,11 @@ echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 
-untested=$(typescript_files_in $(sources_and_tests "$@") \
-    | "$node_binary" "$(dirname "$0")/property_test_coverage.js" \
-    "$typescript_module" | reportable_findings)
+untested=$(for source_directory in "$@"; do
+    typescript_files_in $(sources_and_tests "$source_directory") \
+        | "$node_binary" "$(dirname "$0")/property_test_coverage.js" \
+        "$typescript_module" "$(basename "$source_directory")"
+done | reportable_findings)
 
 fail_on_findings "$untested" \
     "nothing states a property about these - give each a fast-check" \

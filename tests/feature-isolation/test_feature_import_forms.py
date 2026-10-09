@@ -55,7 +55,7 @@ def _report(
     _ = module.write_text(source, encoding="utf-8")
 
     finished = subprocess.run(
-        [sys.executable, str(_CHECKER)],
+        [sys.executable, str(_CHECKER), "src"],
         input=str(relative),
         capture_output=True,
         text=True,

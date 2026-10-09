@@ -15,9 +15,12 @@ class LonelyModule(NamedTuple):
 
 
 class ModuleName:
+    def __init__(self, source_folder: str) -> None:
+        self._source_folder = source_folder
+
     def of(self, path: Path) -> str:
         parts = path.parts
-        index = parts.index("src")
+        index = parts.index(self._source_folder)
         trail = parts[index + 1 :]
         dotted = ".".join(trail).removesuffix(".py")
 
@@ -74,8 +77,11 @@ class ImportedModule:
 
 
 class LonelyModules:
+    def __init__(self, source_folder: str) -> None:
+        self._module_name = ModuleName(source_folder)
+
     def find_in(self, paths: list[str]) -> list[LonelyModule]:
-        modules = {ModuleName().of(Path(p)): p for p in paths}
+        modules = {self._module_name.of(Path(p)): p for p in paths}
         shared = {
             name for name in modules if name.split(".")[0] == SHARED_PACKAGE
         }
@@ -106,7 +112,7 @@ class LonelyModules:
 
             if feature is not None:
                 callers[owner].add(feature)
-            elif ModuleName().of(path) != owner:
+            elif self._module_name.of(path) != owner:
                 kept.add(owner)
 
     def _lonely(
@@ -132,9 +138,10 @@ class LonelyModules:
         return found
 
 
+source_folder = sys.argv[1]
 source_paths = sys.stdin.read().split()
 
-for lonely in LonelyModules().find_in(source_paths):
+for lonely in LonelyModules(source_folder).find_in(source_paths):
     if lonely.features:
         reason = f"only {lonely.features[0]} imports it"
     else:

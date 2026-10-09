@@ -246,3 +246,13 @@ def test_a_check_uses_its_own_folders_over_the_global_ones(
     )
 
     assert finished.returncode == 0
+
+
+def test_checks_a_source_folder_not_named_src(tmp_path: Path) -> None:
+    repository(tmp_path)
+    stage_file(tmp_path, "service/lib/long.py", OVERLONG_SOURCE)
+
+    finished = _run(tmp_path, 'source_directories = ["service/lib"]\n')
+
+    assert finished.returncode == 1
+    assert "service/lib/long.py" in finished.stderr

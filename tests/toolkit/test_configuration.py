@@ -69,7 +69,6 @@ def test_a_check_section_overrides_the_global_folders(tmp_path: Path) -> None:
     [
         ("[checks.linters]\nwhen = \"pre-commit\"\n", "source_directories"),
         (MINIMAL + "colour = 3\n", "colour"),
-        ('source_directories = ["api/lib"]\n', "api/lib"),
         (MINIMAL + "[checks.linter]\n", "linter"),
         (MINIMAL + "[checks.coverage]\nwhitelist = [\"x\"]\n", "coverage"),
         (MINIMAL + "[checks.linters]\nwhen = \"post-merge\"\n", "when"),
@@ -231,3 +230,13 @@ def test_check_settings_property_keeps_the_written_line_limit(
     settings = check_settings(configuration, "file-length")
 
     assert settings["max-lines"] == maximum_lines
+
+
+def test_accepts_a_source_folder_with_any_name(tmp_path: Path) -> None:
+    configuration_path = written_configuration(
+        tmp_path, 'source_directories = ["api/lib", "web/app"]\n'
+    )
+
+    configuration = read_configuration(configuration_path)
+
+    assert configuration["source_directories"] == ["api/lib", "web/app"]

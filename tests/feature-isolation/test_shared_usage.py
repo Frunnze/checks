@@ -16,7 +16,7 @@ def _report_for(tmp_path: Path, files: dict[str, str]) -> list[str]:
         written.append(relative)
 
     finished = subprocess.run(
-        [sys.executable, str(_CHECKER)],
+        [sys.executable, str(_CHECKER), "src"],
         input="\n".join(written),
         capture_output=True,
         text=True,

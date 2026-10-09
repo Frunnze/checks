@@ -13,7 +13,8 @@ trap 'rm -rf "$generated_rules"' EXIT
 silencers='@phpstan-ignore|@psalm-suppress'
 silenced=$(grep -rnE "$silencers" $(sources_and_tests "$@") || true)
 
-fail_on_findings "$silenced" "the type checker is silenced here - fix the type:"
+fail_on_findings "$silenced" \
+    "the type checker is silenced here - fix the type:"
 
 for source_directory in "$@"; do
     package=$(package_of "$source_directory")
@@ -23,7 +24,7 @@ for source_directory in "$@"; do
     if ! (cd "$package" && "$php_tools/phpstan" analyse \
         --no-progress --memory-limit=1G -c "$rules" \
         --autoload-file vendor/autoload.php \
-        $(existing_directories src tests)); then
+        $(package_folders "$source_directory")); then
         echo "pre-commit: $package does not type-check" >&2
         exit 1
     fi

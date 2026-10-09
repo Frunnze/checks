@@ -11,7 +11,8 @@ require_binary "$node_tools/tsc" typescript
 silencers='@ts-ignore|@ts-expect-error|@ts-nocheck|eslint-disable'
 silenced=$(grep -rnE "$silencers" $(sources_and_tests "$@") || true)
 
-fail_on_findings "$silenced" "the type checker is silenced here - fix the type:"
+fail_on_findings "$silenced" \
+    "the type checker is silenced here - fix the type:"
 
 for source_directory in "$@"; do
     package=$(package_of "$source_directory")

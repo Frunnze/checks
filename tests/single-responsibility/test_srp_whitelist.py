@@ -186,7 +186,7 @@ def test_hook_reads_adjacent_whitelist_and_instructs_the_agent(
     assert result.returncode == 0, result.stderr
     assert "whitelisted=1" in result.stdout
     assert (
-        "Agent: first identify whether each finding is a real SRP violation"
+        "Agent: first identify whether each finding is a real"
         in result.stdout
     )
     assert "Split only the real violations" in result.stdout

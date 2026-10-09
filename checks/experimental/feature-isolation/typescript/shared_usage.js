@@ -12,6 +12,7 @@ const FEATURES_DIRECTORY = "features";
 const MINIMUM_FEATURES = 2;
 
 const typescript = require(process.argv[2]);
+const sourceFolder = process.argv[3];
 
 function owningFeatureOf(filePath) {
   const segments = path.resolve(filePath).split(path.sep);
@@ -26,7 +27,7 @@ function sharedModulesAmong(paths) {
   const modules = new Map();
 
   for (const filePath of paths) {
-    const sourceRoot = sourceRootOf(filePath);
+    const sourceRoot = sourceRootOf(filePath, sourceFolder);
 
     if (sourceRoot === null) continue;
 
@@ -39,7 +40,7 @@ function sharedModulesAmong(paths) {
 }
 
 function sharedImportsIn(filePath, shared) {
-  const sourceRoot = sourceRootOf(filePath);
+  const sourceRoot = sourceRootOf(filePath, sourceFolder);
   const found = [];
 
   if (sourceRoot === null) return found;
@@ -59,7 +60,7 @@ function sharedImportsIn(filePath, shared) {
 
 function recordUsage(filePath, shared, callers, kept) {
   const feature = owningFeatureOf(filePath);
-  const sourceRoot = sourceRootOf(filePath);
+  const sourceRoot = sourceRootOf(filePath, sourceFolder);
   const ownName =
     sourceRoot === null ? null : moduleNameOf(sourceRoot, filePath);
 

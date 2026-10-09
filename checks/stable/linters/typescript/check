@@ -11,7 +11,8 @@ generated_rules=$(mktemp -d)
 trap 'rm -rf "$generated_rules"' EXIT
 
 lint_package() {
-    package=$1
+    source_directory=$1
+    package=$(package_of "$source_directory")
     rules="$generated_rules/eslint.config.mjs"
     generated_configuration eslint "$package" > "$rules"
 
@@ -22,14 +23,14 @@ lint_package() {
     done
 
     (cd "$package" && "$node_tools/eslint" "$@" \
-        $(existing_directories src tests))
+        $(package_folders "$source_directory"))
 }
 
 for source_directory in "$@"; do
     package=$(package_of "$source_directory")
     require_node_modules "$package"
 
-    if ! lint_package "$package"; then
+    if ! lint_package "$source_directory"; then
         echo "pre-commit: eslint rejected $package" >&2
         exit 1
     fi

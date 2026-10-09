@@ -18,7 +18,7 @@ def report_from(
         written.append(relative)
 
     finished = subprocess.run(
-        ["node", str(finder), str(TYPESCRIPT_MODULE)],
+        ["node", str(finder), str(TYPESCRIPT_MODULE), "src"],
         input="\n".join(written),
         capture_output=True,
         text=True,

@@ -7,7 +7,6 @@ from stateless_definitions import FunctionNode, StatelessDefinition
 
 FUNCTION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef)
 GIVEN_DECORATOR = "given"
-SOURCE_DIRECTORY = "src"
 TESTS_DIRECTORY = "tests"
 TEST_PREFIX = "test_"
 PROPERTY_MARKER = "_property"
@@ -25,29 +24,35 @@ class SplitPaths(NamedTuple):
 
 
 class ServiceName:
+    def __init__(self, source_folder: str) -> None:
+        self._source_folder = source_folder
+
     def of(self, path: Path) -> str:
         parts = path.parts
 
         if TESTS_DIRECTORY in parts:
             boundary = parts.index(TESTS_DIRECTORY)
         else:
-            boundary = parts.index(SOURCE_DIRECTORY)
+            boundary = parts.index(self._source_folder)
 
         return "/".join(parts[:boundary])
 
 
 class SourcesAndTests:
+    def __init__(self, source_folder: str) -> None:
+        self._source_folder = source_folder
+
     def split(self, paths: list[str]) -> SplitPaths:
         sources: dict[str, list[Path]] = {}
         tests: dict[str, list[Path]] = {}
-        service = ServiceName()
+        service = ServiceName(self._source_folder)
 
         for given_path in paths:
             path = Path(given_path)
 
             if TESTS_DIRECTORY in path.parts:
                 tests.setdefault(service.of(path), []).append(path)
-            elif SOURCE_DIRECTORY in path.parts:
+            elif self._source_folder in path.parts:
                 sources.setdefault(service.of(path), []).append(path)
 
         return SplitPaths(sources, tests)
@@ -101,8 +106,11 @@ class PropertyTestName:
 
 
 class UntestedDefinitions:
+    def __init__(self, source_folder: str) -> None:
+        self._source_folder = source_folder
+
     def find_in(self, paths: list[str]) -> list[UntestedDefinition]:
-        split = SourcesAndTests().split(paths)
+        split = SourcesAndTests(self._source_folder).split(paths)
         found: list[UntestedDefinition] = []
 
         for service, sources in split.sources.items():
@@ -148,9 +156,10 @@ class UntestedDefinitions:
         return False
 
 
+source_folder = sys.argv[1]
 source_paths = sys.stdin.read().split()
 
-for untested in UntestedDefinitions().find_in(source_paths):
+for untested in UntestedDefinitions(source_folder).find_in(source_paths):
     expected = PropertyTestName().expected_for(untested.name) + "*"
     _ = sys.stdout.write(
         f"{untested.path}:{untested.line_number}: {untested.name} "

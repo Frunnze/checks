@@ -18,7 +18,7 @@ for source_directory in "$@"; do
 
     if ! (cd "$package" && "$php_tools/phpcs" -q --standard="$rules" \
         ${ignored_sniffs:+--exclude="$ignored_sniffs"} \
-        $(existing_directories src tests)); then
+        $(package_folders "$source_directory")); then
         echo "pre-commit: phpcs rejected $package - phpcbf fixes the" >&2
         echo "pre-commit: layout, the rest needs a hand" >&2
         exit 1

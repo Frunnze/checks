@@ -18,7 +18,7 @@ for source_directory in "$@"; do
     if ! (cd "$package" && "$php_tools/phpstan" analyse \
         --no-progress --memory-limit=1G -c "$rules" \
         --autoload-file vendor/autoload.php \
-        $(existing_directories src tests)); then
+        $(package_folders "$source_directory")); then
         echo "pre-commit: nothing reaches this code in $package -" >&2
         echo "pre-commit: delete it" >&2
         exit 1
