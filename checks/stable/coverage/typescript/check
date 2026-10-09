@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: typescript coverage (the package's coverage script)"
+echo "pre-commit: test first - do not write a branch no test asked for"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    require_node_modules "$package"
+
+    if ! (cd "$package" && npm run --silent coverage); then
+        echo "pre-commit: $package is not covered - test every branch" >&2
+        echo "pre-commit: you wrote, or delete the branch no test" >&2
+        echo "pre-commit: asked for" >&2
+        exit 1
+    fi
+done

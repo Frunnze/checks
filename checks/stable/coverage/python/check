@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+minimum_coverage=$(setting checks.coverage.fail-under)
+
+echo "pre-commit: python branch coverage (min $minimum_coverage%)"
+echo "pre-commit: test first - do not write a branch no test asked for"
+
+python_binary=$(project_python)
+require_binary "$python_binary" "the project python ($python_binary)"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+
+    (cd "$package" && "$python_binary" -m pytest tests -q \
+        --cov=src \
+        --cov-branch \
+        --cov-report=term-missing:skip-covered \
+        --cov-fail-under="$minimum_coverage")
+done

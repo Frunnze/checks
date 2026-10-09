@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: nested definitions in typescript (no function inside a"
+echo "pre-commit: function)"
+echo "pre-commit: keep it testable - nothing can reach a def hidden in a def"
+
+require_binary "$node_binary" node
+require_binary "$typescript_module" typescript
+
+nested_definitions=$(typescript_files_in "$@" \
+    | "$node_binary" "$(dirname "$0")/nested_definitions.js" \
+    "$typescript_module" | reportable_findings)
+
+fail_on_findings "$nested_definitions" \
+    "these definitions are nested - lift them out:"

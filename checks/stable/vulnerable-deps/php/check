@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: php dependencies (no known vulnerability)"
+echo "pre-commit: stay secure by default - upgrade rather than accept it"
+
+require_command composer "brew install composer"
+require_binary "$php_binary" php
+
+advisory_filter="$(dirname "$0")/unaccepted_advisories.php"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+
+    if audit_output=$("$composer_binary" audit --no-interaction \
+        --format=json --working-dir="$package" 2>/dev/null); then
+        continue
+    fi
+
+    if echo "$audit_output" | grep -qE "$unreachable_registry"; then
+        echo "pre-commit: advisory database unreachable - skipping the" >&2
+        echo "pre-commit: composer vulnerability scan of $package" >&2
+        continue
+    fi
+
+    findings=$(echo "$audit_output" \
+        | "$php_binary" "$advisory_filter" $(whitelist_entries))
+
+    fail_on_findings "$findings" \
+        "a package in $package has a known vulnerability - run" \
+        "composer update for it, or add the advisory id to" \
+        "[checks.vulnerable-deps] whitelist:"
+done

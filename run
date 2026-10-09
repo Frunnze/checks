@@ -1,0 +1,98 @@
+#!/bin/sh
+set -e
+
+toolkit=$(cd "$(dirname "$0")" && pwd)
+project_root=$(git rev-parse --show-toplevel)
+configuration_file="$project_root/checks.toml"
+hook_stage=all
+
+if [ "$1" = --stage ]; then
+    hook_stage=$2
+    shift 2
+fi
+
+requested_checks=" $* "
+check_name=""
+check_scope=repository
+
+export toolkit project_root configuration_file check_name check_scope
+export hook_stage
+
+. "$toolkit/tools.sh"
+
+require_binary "$toolkit_python" python
+
+if [ ! -f "$configuration_file" ]; then
+    echo "pre-commit: no checks.toml in $project_root -" >&2
+    echo "pre-commit: see $toolkit/README.md" >&2
+    exit 1
+fi
+
+source_directories=$(setting source_directories)
+configured_stage=$hook_stage
+
+if [ "$hook_stage" = ci ]; then
+    configured_stage=all
+fi
+
+enabled_check_directories=$(
+    setting "enabled_check_directories.$configured_stage"
+)
+changed_files=$(changed_files_at "$hook_stage")
+
+export changed_files
+
+require_source_directories() {
+    for source_directory in "$@"; do
+        if [ ! -d "$source_directory" ]; then
+            echo "pre-commit: $source_directory is in checks.toml but is" >&2
+            echo "pre-commit: not a folder, so nothing checks it" >&2
+            exit 1
+        fi
+
+        require_supported_language "$source_directory"
+    done
+}
+
+require_source_directories $source_directories
+
+for check_directory in $enabled_check_directories; do
+    check_name=$(basename "$check_directory")
+    check_scope=$(setting "checks.$check_name.scope")
+    checked_directories=$(setting "checks.$check_name.source_directories")
+
+    case "$requested_checks" in
+        "  " | *" $check_name "*) ;;
+        *) continue ;;
+    esac
+
+    require_source_directories $checked_directories
+
+    if [ "$hook_stage" = ci ]; then
+        check_scope=repository
+    fi
+
+    if [ "$check_scope" = changed ]; then
+        checked_directories=$(directories_with_changes $checked_directories)
+    fi
+
+    if [ -z "$checked_directories" ]; then
+        continue
+    fi
+
+    if [ -f "$check_directory/check" ]; then
+        sh "$check_directory/check" $checked_directories
+        continue
+    fi
+
+    for language_directory in "$check_directory"/*/; do
+        language=$(basename "$language_directory")
+        written_directories=$(
+            directories_written_in "$language" $checked_directories
+        )
+
+        if [ -n "$written_directories" ]; then
+            sh "$language_directory/check" $written_directories
+        fi
+    done
+done

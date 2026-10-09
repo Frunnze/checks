@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: strict typing in python (basedpyright)"
+echo "pre-commit: type it strictly - an illegal state must fail to compile"
+echo "pre-commit: never silence the checker - fix the type instead"
+
+require_binary "$python_tools/basedpyright" basedpyright
+
+python_binary=$(project_python)
+require_binary "$python_binary" "the project python ($python_binary)"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+
+    if ! (cd "$package" && "$python_tools/basedpyright" \
+        --pythonpath "$python_binary"); then
+        echo "pre-commit: $package does not type-check" >&2
+        exit 1
+    fi
+done

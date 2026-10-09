@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: property tests in typescript (one per definition)"
+echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
+
+require_binary "$node_binary" node
+require_binary "$typescript_module" typescript
+
+untested=$(typescript_files_in $(sources_and_tests "$@") \
+    | "$node_binary" "$(dirname "$0")/property_test_coverage.js" \
+    "$typescript_module" | reportable_findings)
+
+fail_on_findings "$untested" \
+    "nothing states a property about these - give each a fast-check" \
+    "test titled \"<function> property <what it guarantees>\" that" \
+    "asserts a contract guarantee over generated input:"

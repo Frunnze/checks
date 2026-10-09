@@ -1,0 +1,31 @@
+[checks.linters.phpcs]
+standard = "WordPress-Extra"
+exclude = [
+    "WordPress.Files.FileName",
+    "Generic.Commenting",
+    "Squiz.Commenting",
+    "WordPress.WP.AlternativeFunctions.json_encode_json_encode",
+]
+
+[checks.linters.phpcs.exclude-patterns]
+"WordPress.NamingConventions.PrefixAllGlobals" = ["tests/*"]
+"WordPress.DB.DirectDatabaseQuery" = ["tests/*"]
+"WordPress.DB.RestrictedClasses" = ["tests/*"]
+"WordPress.WP.GlobalVariablesOverride" = ["tests/*"]
+"WordPress.WP.AlternativeFunctions" = ["tests/*"]
+"WordPress.Security.EscapeOutput" = ["tests/*"]
+"WordPress.NamingConventions.ValidFunctionName" = ["tests/*"]
+"Generic.CodeAnalysis.UnusedFunctionParameter" = ["tests/*"]
+"Generic.Files.OneObjectStructurePerFile" = ["tests/*"]
+"PEAR.NamingConventions.ValidClassName" = ["tests/*"]
+
+[checks.strict-typing.phpstan]
+includes = ["{toolkit}/vendor/szepeviktor/phpstan-wordpress/extension.neon"]
+scan-root-files = true
+
+[checks.dead-code.phpstan]
+includes = ["{toolkit}/vendor/szepeviktor/phpstan-wordpress/extension.neon"]
+scan-root-files = true
+
+[checks.unused-deps.composer-dependency-analyser]
+ignore-errors = ["UNKNOWN_CLASS"]

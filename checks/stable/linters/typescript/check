@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: linters in typescript (eslint strictTypeChecked)"
+echo "pre-commit: write for the reader - code is read far more than written"
+
+require_binary "$node_tools/eslint" eslint
+
+generated_rules=$(mktemp -d)
+trap 'rm -rf "$generated_rules"' EXIT
+
+lint_package() {
+    package=$1
+    rules="$generated_rules/eslint.config.mjs"
+    generated_configuration eslint "$package" > "$rules"
+
+    set -- --config "$rules" --max-warnings 0
+
+    for ignored_rule in $(whitelisted_rules_for eslint); do
+        set -- "$@" --rule "{\"$ignored_rule\": \"off\"}"
+    done
+
+    (cd "$package" && "$node_tools/eslint" "$@" \
+        $(existing_directories src tests))
+}
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    require_node_modules "$package"
+
+    if ! lint_package "$package"; then
+        echo "pre-commit: eslint rejected $package" >&2
+        exit 1
+    fi
+done

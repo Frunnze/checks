@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: strict typing in php (phpstan level max, strict rules)"
+echo "pre-commit: type it strictly - an illegal state must fail to compile"
+echo "pre-commit: never silence the checker - fix the type instead"
+
+require_binary "$php_tools/phpstan" phpstan
+
+generated_rules=$(mktemp -d)
+trap 'rm -rf "$generated_rules"' EXIT
+silencers='@phpstan-ignore|@psalm-suppress'
+silenced=$(grep -rnE "$silencers" $(sources_and_tests "$@") || true)
+
+fail_on_findings "$silenced" "the type checker is silenced here - fix the type:"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    rules="$generated_rules/phpstan.neon"
+    generated_configuration phpstan "$package" > "$rules"
+
+    if ! (cd "$package" && "$php_tools/phpstan" analyse \
+        --no-progress --memory-limit=1G -c "$rules" \
+        --autoload-file vendor/autoload.php \
+        $(existing_directories src tests)); then
+        echo "pre-commit: $package does not type-check" >&2
+        exit 1
+    fi
+done

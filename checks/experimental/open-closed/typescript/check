@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: open/closed in typescript (no growing closed dispatches)"
+echo "pre-commit: follow OCP - extend behaviour without editing its policy"
+
+require_binary "$node_binary" node
+require_binary "$typescript_module" typescript
+
+typescript_files=$(typescript_files_in "$@")
+dispatches=$(
+    echo "$typescript_files" | "$node_binary" \
+        "$(dirname "$0")/variant_dispatches.js" "$typescript_module"
+    echo "$typescript_files" | "$toolkit_python" \
+        "$(dirname "$0")/../python/protocol_strings.py"
+)
+
+fail_on_findings "$(echo "$dispatches" | reportable_findings)" \
+    "these open/closed risks were detected:" \
+    "follow OCP - replace the branch with an injected strategy/handler," \
+    "polymorphism, or a registry wired at the composition boundary"

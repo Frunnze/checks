@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: dead code in python (delete what nothing reaches)"
+echo "pre-commit: follow YAGNI - delete what nothing reaches, do not keep it"
+
+require_binary "$python_tools/vulture" vulture
+
+reached_names=$(mktemp -d)
+trap 'rm -rf "$reached_names"' EXIT
+whitelist_entries > "$reached_names/whitelist.py"
+
+if ! "$python_tools/vulture" "$@" "$reached_names/whitelist.py" \
+    --min-confidence 60; then
+    echo "pre-commit: nothing reaches this code - delete it, or add" >&2
+    echo "pre-commit: its name to [checks.dead-code] whitelist" >&2
+    echo "pre-commit: when a framework calls it" >&2
+    exit 1
+fi

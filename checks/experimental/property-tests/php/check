@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: property tests in php (one per definition)"
+echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
+
+require_binary "$php_binary" php
+
+untested=$(for source_directory in "$@"; do
+    php_files_in $(sources_and_tests "$source_directory") \
+        | "$php_binary" "$(dirname "$0")/property_test_coverage.php" \
+        "$source_directory"
+done | reportable_findings)
+
+fail_on_findings "$untested" \
+    "assert a guarantee over generated input (\$this->forAll) - a" \
+    "round-trip, an invariant, a bound, an ordering - never an example:"

@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: linters in php (phpcs)"
+echo "pre-commit: write for the reader - code is read far more than written"
+
+require_binary "$php_tools/phpcs" phpcs
+
+generated_rules=$(mktemp -d)
+trap 'rm -rf "$generated_rules"' EXIT
+ignored_sniffs=$(whitelisted_rules_for phpcs | paste -sd, -)
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    rules="$generated_rules/phpcs.xml"
+    generated_configuration phpcs "$package" > "$rules"
+
+    if ! (cd "$package" && "$php_tools/phpcs" -q --standard="$rules" \
+        ${ignored_sniffs:+--exclude="$ignored_sniffs"} \
+        $(existing_directories src tests)); then
+        echo "pre-commit: phpcs rejected $package - phpcbf fixes the" >&2
+        echo "pre-commit: layout, the rest needs a hand" >&2
+        exit 1
+    fi
+done

@@ -1,0 +1,32 @@
+line-length = 79
+target-version = "py312"
+
+[lint]
+preview = true
+explicit-preview-rules = true
+select = ["ALL", "PLR0904", "PLR1702", "PLW0717", "PLW1514"]
+ignore = [
+    "COM812",
+    "CPY001",
+    "D",
+    "INP001",
+    "PERF401",
+    "S602",
+    "S603",
+    "S607",
+]
+
+[lint.pylint]
+max-public-methods = 15
+
+[lint.per-file-ignores]
+"**/tests/**" = [
+    "EM101",
+    "EM102",
+    "PT009",
+    "S101",
+    "SLF001",
+]
+
+[lint.flake8-import-conventions.extend-aliases]
+"xml.etree.ElementTree" = "ElementTree"

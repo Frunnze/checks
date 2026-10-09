@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: dead code in php (delete what nothing reaches)"
+echo "pre-commit: follow YAGNI - delete what nothing reaches, do not keep it"
+
+require_binary "$php_tools/phpstan" phpstan
+
+generated_rules=$(mktemp -d)
+trap 'rm -rf "$generated_rules"' EXIT
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    rules="$generated_rules/phpstan-dead-code.neon"
+    generated_configuration phpstan-dead-code "$package" > "$rules"
+
+    if ! (cd "$package" && "$php_tools/phpstan" analyse \
+        --no-progress --memory-limit=1G -c "$rules" \
+        --autoload-file vendor/autoload.php \
+        $(existing_directories src tests)); then
+        echo "pre-commit: nothing reaches this code in $package -" >&2
+        echo "pre-commit: delete it" >&2
+        exit 1
+    fi
+done

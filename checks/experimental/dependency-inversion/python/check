@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: dependency inversion in python (depend on abstractions)"
+
+shared_finders="$(dirname "$0")/../../open-closed/python"
+
+constructions=$(python_files_in "$@" \
+    | PYTHONPATH="$shared_finders" "$toolkit_python" \
+    "$(dirname "$0")/constructed_collaborators.py" | reportable_findings)
+
+fail_on_findings "$constructions" \
+    "these dependency inversion risks were detected:" \
+    "follow DIP - receive the collaborator as an injected abstraction" \
+    "instead of constructing it"

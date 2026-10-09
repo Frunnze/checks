@@ -1,0 +1,32 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+. "$(dirname "$0")/../layout.sh"
+
+echo "pre-commit: feature isolation in typescript (siblings meet only in"
+echo "pre-commit: shared)"
+
+require_binary "$node_binary" node
+require_binary "$typescript_module" typescript
+require_feature_layout features "$@"
+
+crossings=$(typescript_files_in "$@" \
+    | "$node_binary" "$(dirname "$0")/feature_imports.js" \
+    "$typescript_module" | reportable_findings)
+
+fail_on_findings "$crossings" \
+    "these features reach into a sibling - move what they share into" \
+    "shared/ and depend on that:"
+
+echo "pre-commit: shared ownership (two features or it is not shared)"
+
+lonely=$(for source_directory in "$@"; do
+    typescript_files_in "$source_directory" \
+        | "$node_binary" "$(dirname "$0")/shared_usage.js" \
+        "$typescript_module"
+done | reportable_findings)
+
+fail_on_findings "$lonely" \
+    "shared/ is for what several features need - move each of these" \
+    "into the one feature that uses it:"

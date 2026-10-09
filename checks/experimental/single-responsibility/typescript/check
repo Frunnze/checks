@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: single responsibility in typescript (two or more"
+echo "pre-commit: external entities blocks)"
+echo "pre-commit: Agent: first identify whether each finding is a real SRP violation."
+echo "pre-commit: Split only the real violations. If a finding is not one, never refactor it - whitelist it: add the exact finding and a reason to [checks.single-responsibility] whitelist in checks.toml"
+
+require_binary "$node_binary" node
+require_binary "$typescript_module" typescript
+
+reviewed_findings=$(mktemp)
+trap 'rm -f "$reviewed_findings"' EXIT
+whitelist_entries > "$reviewed_findings"
+
+"$toolkit_python" "$(dirname "$0")/../python/srp_check.py" \
+    --node "$node_binary" --typescript "$typescript_module" \
+    --whitelist "$reviewed_findings" "$@"

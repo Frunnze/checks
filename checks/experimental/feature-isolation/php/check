@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+. "$(dirname "$0")/../layout.sh"
+
+echo "pre-commit: feature isolation in php (siblings meet only in Shared)"
+
+require_binary "$php_binary" php
+require_feature_layout Features "$@"
+
+for source_directory in "$@"; do
+    crossings=$(php_files_in "$source_directory" \
+        | "$php_binary" "$(dirname "$0")/sibling_crossings.php" \
+        "$source_directory" | reportable_findings)
+
+    fail_on_findings "$crossings" \
+        "these features reach into a sibling - move what they share" \
+        "into $source_directory/Shared and use that:"
+
+    lonely=$(php_files_in "$source_directory" \
+        | "$php_binary" "$(dirname "$0")/lonely_shared.php" \
+        "$source_directory" | reportable_findings)
+
+    fail_on_findings "$lonely" \
+        "Shared is for what several features need - move each of" \
+        "these into the one feature that uses it:"
+done

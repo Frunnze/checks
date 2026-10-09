@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+joined_name='[A-Za-z0-9]*(And|Or)[A-Z]'
+declaring='(export[[:space:]]+)?(default[[:space:]]+)?(async[[:space:]]+)?'
+joined_function="${declaring}function[[:space:]]+$joined_name"
+joined_binding="(const|let|var)[[:space:]]+$joined_name"
+joined_class="(abstract[[:space:]]+)?class[[:space:]]+$joined_name"
+joined_type="(type|interface)[[:space:]]+$joined_name"
+joined_method="(static[[:space:]]+)?[a-z]$joined_name[A-Za-z0-9]*\("
+joined_definition="^[[:space:]]*(export[[:space:]]+)?\
+($joined_function|$joined_binding|$joined_class|$joined_type\
+|$joined_method)"
+
+echo "pre-commit: definition names in typescript (one responsibility per"
+echo "pre-commit: name)"
+echo "pre-commit: follow SRP - split a name that says 'And'/'Or'"
+
+joined_names=$(typescript_files_in "$@" | while read -r source_file; do
+    grep -nHE "$joined_definition" "$source_file" || true
+done | reportable_findings)
+
+fail_on_findings "$joined_names" \
+    "these names join two responsibilities - split them:"

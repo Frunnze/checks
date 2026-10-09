@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: property tests in python (one per definition)"
+echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
+
+untested=$(python_files_in $(sources_and_tests "$@") \
+    | "$toolkit_python" "$(dirname "$0")/property_test_coverage.py" \
+    | reportable_findings)
+
+fail_on_findings "$untested" \
+    "nothing states a property about these - give each a hypothesis" \
+    "test named test_<function>_property_<what it guarantees> that" \
+    "asserts a contract guarantee over generated input:"

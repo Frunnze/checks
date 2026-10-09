@@ -1,0 +1,28 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: security patterns (semgrep - dataflow the linters"
+echo "pre-commit: cannot see)"
+
+require_binary "$python_tools/semgrep" semgrep
+
+source_directories="$*"
+
+set -- scan --error --quiet --metrics off
+
+for ruleset in $(cat "$(dirname "$0")/rulesets.txt"); do
+    set -- "$@" --config "$ruleset"
+done
+
+for excluded_rule in $(whitelist_entries); do
+    set -- "$@" --exclude-rule "$excluded_rule"
+done
+
+if ! "$python_tools/semgrep" "$@" $source_directories \
+    $(package_dockerfiles $source_directories); then
+    echo "pre-commit: semgrep found a pattern the other checks miss -" >&2
+    echo "pre-commit: fix it, or add the rule id to the whitelist of" >&2
+    echo "pre-commit: [checks.security-patterns] in checks.toml" >&2
+    exit 1
+fi

@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: php dependencies (declare what you use, drop what you"
+echo "pre-commit: don't)"
+
+require_command composer "brew install composer"
+require_binary "$php_tools/composer-dependency-analyser" \
+    composer-dependency-analyser
+
+generated_rules=$(mktemp -d)
+trap 'rm -rf "$generated_rules"' EXIT
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    rules="$generated_rules/composer-dependency-analyser.php"
+    generated_configuration composer-dependency-analyser "$package" \
+        > "$rules"
+
+    if ! "$composer_binary" validate --strict --no-check-publish -q \
+        --working-dir="$package"; then
+        echo "pre-commit: $package/composer.json or composer.lock is" >&2
+        echo "pre-commit: invalid" >&2
+        exit 1
+    fi
+
+    if ! (cd "$package" \
+        && "$php_tools/composer-dependency-analyser" --config "$rules"); then
+        echo "pre-commit: $package/composer.json disagrees with the" >&2
+        echo "pre-commit: code - drop the unused package, declare the" >&2
+        echo "pre-commit: used one, or move a dev package out of" >&2
+        echo "pre-commit: production code" >&2
+        exit 1
+    fi
+done

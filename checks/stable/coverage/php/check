@@ -1,0 +1,36 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+minimum_coverage=$(setting checks.coverage.fail-under)
+
+echo "pre-commit: php coverage (classes, methods, lines at"
+echo "pre-commit: $minimum_coverage%)"
+echo "pre-commit: test first - do not write a branch no test asked for"
+
+require_binary "$php_binary" php
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    require_binary "$package/vendor/bin/phpunit" phpunit
+
+    report=$(cd "$package" && XDEBUG_MODE=coverage \
+        "$php_binary" -d memory_limit=-1 vendor/bin/phpunit \
+        --coverage-text \
+        --only-summary-for-coverage-text \
+        --colors=never 2>&1) || {
+        echo "$report" >&2
+        echo "pre-commit: the tests of $package fail" >&2
+        exit 1
+    }
+
+    summary=$(echo "$report" | grep -E '^ +(Classes|Methods|Lines):')
+    echo "$summary"
+
+    uncovered=$(echo "$summary" | awk -v minimum="$minimum_coverage" \
+        '{ sub("%", "", $2); if ($2 + 0 < minimum) print }')
+
+    fail_on_findings "$uncovered" \
+        "$package is covered below $minimum_coverage% - test what you" \
+        "wrote, or delete the branch no test asked for:"
+done

@@ -1,0 +1,29 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: api contract (no generated request crashes an endpoint)"
+echo "pre-commit: fail fast - refuse bad input at the edge, not deeper in"
+
+python_binary=$(project_python)
+require_binary "$python_binary" "the project python ($python_binary)"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    contract_tests="$(tests_of "$source_directory")/test_api_contract.py"
+
+    if [ ! -f "$contract_tests" ]; then
+        echo "pre-commit: $contract_tests is missing - write the" >&2
+        echo "pre-commit: schemathesis contract tests for $package, or" >&2
+        echo "pre-commit: leave api-contract out of experimental_checks" >&2
+        exit 1
+    fi
+
+    if ! (cd "$package" && "$python_binary" -m pytest \
+        tests/test_api_contract.py -q -p no:randomly); then
+        echo "pre-commit: a generated request crashed an endpoint in" >&2
+        echo "pre-commit: $package - refuse the input with a 4xx instead" >&2
+        echo "pre-commit: of letting it reach the handler" >&2
+        exit 1
+    fi
+done

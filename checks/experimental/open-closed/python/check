@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "pre-commit: open/closed in python (no growing closed dispatches)"
+echo "pre-commit: follow OCP - extend behaviour without editing its policy"
+
+python_files=$(python_files_in "$@")
+dispatches=$(
+    echo "$python_files" | "$toolkit_python" "$(dirname "$0")/variant_dispatches.py"
+    echo "$python_files" | "$toolkit_python" "$(dirname "$0")/protocol_strings.py"
+)
+
+fail_on_findings "$(echo "$dispatches" | reportable_findings)" \
+    "these open/closed risks were detected:" \
+    "follow OCP - replace the branch with an injected strategy/handler," \
+    "polymorphism, or a registry wired at the composition boundary"

@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+maximum_lines=$(setting checks.file-length.max-lines)
+
+echo "pre-commit: file length (max $maximum_lines lines)"
+echo "pre-commit: follow SRP - split a file that grew past one job"
+
+source_files=$(
+    sources=$(sources_and_tests "$@")
+    python_files_in $sources
+    typescript_files_in $sources
+    php_files_in $sources
+)
+
+overlong_files=$(echo "$source_files" | grep . | while read -r source_file; do
+    awk -v limit="$maximum_lines" -v name="$source_file" \
+        'END {if (NR > limit) print name " (" NR " lines)"}' \
+        "$source_file"
+done | reportable_findings)
+
+fail_on_findings "$overlong_files" "over $maximum_lines lines:"

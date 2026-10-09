@@ -1,0 +1,15 @@
+includes:
+	- ../../../../vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+	level: max
+	checkUninitializedProperties: true
+	checkImplicitMixed: true
+	checkBenevolentUnionTypes: true
+	checkTooWideReturnTypesInProtectedAndPublicMethods: true
+	reportPossiblyNonexistentGeneralArrayOffset: true
+	reportPossiblyNonexistentConstantArrayOffset: true
+	reportAlwaysTrueInLastCondition: true
+	reportAnyTypeWideningInVarTag: true
+	reportUnmatchedIgnoredErrors: true
+	treatPhpDocTypesAsCertain: false

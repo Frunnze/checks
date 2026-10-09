@@ -1,0 +1,10 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["configuration", "tests"]
+
+[tool.basedpyright]
+typeCheckingMode = "all"
+include = ["configuration"]
+venvPath = "."
+venv = ".venv"
+extraPaths = ["configuration"]
