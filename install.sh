@@ -32,11 +32,16 @@ if [ -z "$project_root" ]; then
     exit 0
 fi
 
-git -C "$project_root" config core.hooksPath "$toolkit_folder/hooks"
+git -C "$project_root" config core.hooksPath "$toolkit/hooks"
 
-if ! grep -qx "$toolkit_folder/" "$project_root/.gitignore" 2> /dev/null
-then
-    echo "$toolkit_folder/" >> "$project_root/.gitignore"
+ignore_file="$project_root/.gitignore"
+
+if ! grep -qx "$toolkit_folder/" "$ignore_file" 2> /dev/null; then
+    if [ -s "$ignore_file" ] && [ -n "$(tail -c 1 "$ignore_file")" ]; then
+        echo >> "$ignore_file"
+    fi
+
+    echo "$toolkit_folder/" >> "$ignore_file"
 fi
 
 echo "install: ready - the hooks of $project_root run $toolkit_folder"
