@@ -6,6 +6,7 @@ from typescript_finder_support import CHECKS, report_from
 
 _FINDER = CHECKS / "experimental" / "feature-isolation" / "typescript" / "feature_imports.js"
 _IMPORTER = "src/features/flashcards/Review.tsx"
+_ALIASED_TSCONFIG = '{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}\n'
 
 
 def _report_for(tmp_path: Path, files: dict[str, str]) -> list[str]:
@@ -32,6 +33,21 @@ def test_flags_an_import_that_reaches_into_a_nested_sibling(
     }
 
     assert _report_for(tmp_path, files) == [f"{_IMPORTER}:1: features.folder"]
+
+
+def test_flags_a_sibling_feature_imported_through_a_path_alias(
+    tmp_path: Path,
+) -> None:
+    tsconfig = tmp_path / "tsconfig.json"
+    _ = tsconfig.write_text(_ALIASED_TSCONFIG, encoding="utf-8")
+    files = {
+        "src/features/chatbot/AskContext.tsx": "export const ask = 1;\n",
+        _IMPORTER: 'import { ask } from "@/features/chatbot/AskContext";\n',
+    }
+
+    assert _report_for(tmp_path, files) == [
+        f"{_IMPORTER}:1: features.chatbot"
+    ]
 
 
 def test_flags_a_type_only_import_from_a_sibling_feature(

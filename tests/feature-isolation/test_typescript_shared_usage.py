@@ -4,6 +4,7 @@ from typescript_finder_support import CHECKS, report_from
 
 _FINDER = CHECKS / "experimental" / "feature-isolation" / "typescript" / "shared_usage.js"
 _SHARED = "src/shared/ui/Meter.tsx"
+_ALIASED_TSCONFIG = '{"compilerOptions": {"paths": {"@/*": ["./src/*"]}}}\n'
 
 
 def _report_for(tmp_path: Path, files: dict[str, str]) -> list[str]:
@@ -19,6 +20,19 @@ def test_allows_a_module_two_features_import(tmp_path: Path) -> None:
         "src/features/folder/FolderPage.tsx": (
             'import { Meter } from "../../shared/ui/Meter";\n'
         ),
+    }
+
+    assert _report_for(tmp_path, files) == []
+
+
+def test_counts_an_import_through_a_path_alias(tmp_path: Path) -> None:
+    tsconfig = tmp_path / "tsconfig.json"
+    _ = tsconfig.write_text(_ALIASED_TSCONFIG, encoding="utf-8")
+    meter = 'import { Meter } from "@/shared/ui/Meter";\n'
+    files = {
+        _SHARED: "export const Meter = 1;\n",
+        "src/features/notes/NotePage.tsx": meter,
+        "src/features/folder/FolderPage.tsx": meter,
     }
 
     assert _report_for(tmp_path, files) == []

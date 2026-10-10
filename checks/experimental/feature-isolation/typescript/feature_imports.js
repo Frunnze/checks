@@ -55,7 +55,7 @@ function crossedImportsIn(filePath, importerChain) {
   const found = [];
 
   for (const reference of importsIn(typescript, filePath)) {
-    const resolved = resolveImport(filePath, reference.specifier);
+    const resolved = resolveImport(typescript, filePath, reference.specifier);
 
     if (resolved === null) continue;
 

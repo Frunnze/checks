@@ -201,3 +201,17 @@ def test_reads_a_path_with_a_space(tmp_path: Path) -> None:
     assert report == [
         "service/src/features/study_units/my router.py:1: features.scheduling"
     ]
+
+
+def test_reads_imports_through_the_source_folder_as_a_package(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "from src.features.scheduling import due\n"
+        "from ...shared.clock import now\n"
+    )
+    report = _report_for(tmp_path, source)
+
+    assert report == [
+        "service/src/features/study_units/router.py:1: features.scheduling"
+    ]

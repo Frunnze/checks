@@ -4,6 +4,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import NamedTuple
 
+from source_modules import PackageChain, RelativeSegments, SourceModule
+
 SHARED_PACKAGE = "shared"
 SHARED_PREFIX = f"{SHARED_PACKAGE}."
 FEATURES_PACKAGE = "features"
@@ -38,6 +40,13 @@ class OwningFeature:
 
 
 class SharedImports:
+    def __init__(
+        self, source_module: SourceModule, package: PackageChain
+    ) -> None:
+        self._source_module = source_module
+        self._package = package
+        self._relative = RelativeSegments()
+
     def in_(self, tree: ast.Module) -> set[str]:
         found: set[str] = set()
 
@@ -50,15 +59,32 @@ class SharedImports:
 
     def _modules_of(self, node: ast.AST) -> list[str]:
         if isinstance(node, ast.ImportFrom):
-            if node.level or node.module is None:
-                return []
-
-            return [f"{node.module}.{alias.name}" for alias in node.names]
+            return self._from_imported(node)
 
         if isinstance(node, ast.Import):
-            return [alias.name for alias in node.names]
+            return [self._source_module.of(alias.name) for alias in node.names]
 
         return []
+
+    def _from_imported(self, node: ast.ImportFrom) -> list[str]:
+        if node.level:
+            return self._relatively_imported(node)
+
+        if node.module is None:
+            return []
+
+        return [
+            self._source_module.of(f"{node.module}.{alias.name}")
+            for alias in node.names
+        ]
+
+    def _relatively_imported(self, node: ast.ImportFrom) -> list[str]:
+        base = self._relative.of(node, self._package)
+
+        if base is None:
+            return []
+
+        return [".".join([*base, alias.name]) for alias in node.names]
 
 
 class ImportedModule:
@@ -77,6 +103,8 @@ class ImportedModule:
 
 class LonelyModules:
     def __init__(self, source_directory: Path) -> None:
+        self._source_directory = source_directory
+        self._source_module = SourceModule(source_directory)
         self._module_name = ModuleName(source_directory)
         self._owning_feature = OwningFeature(source_directory)
 
@@ -101,8 +129,10 @@ class LonelyModules:
         tree = ast.parse(path.read_bytes(), filename=str(path))
         feature = self._owning_feature.of(path)
         owning = ImportedModule()
+        package = path.relative_to(self._source_directory).parts[:-1]
+        imports = SharedImports(self._source_module, package)
 
-        for imported in SharedImports().in_(tree):
+        for imported in imports.in_(tree):
             for owner in owning.owners(imported, shared):
                 if feature is not None:
                     callers[owner].add(feature)

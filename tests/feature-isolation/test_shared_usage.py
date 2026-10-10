@@ -244,3 +244,30 @@ def test_a_package_init_counts_every_import_from_its_package(
     assert _report_for(tmp_path, files) == [
         "src/shared/clock.py: only notes imports it"
     ]
+
+
+def test_counts_an_import_through_the_source_folder_as_a_package(
+    tmp_path: Path,
+) -> None:
+    clock = "from src.shared.clock import now\n"
+    files = {
+        "svc/src/shared/clock.py": "def now():\n    return 1\n",
+        "svc/src/features/notes/router.py": clock,
+        "svc/src/features/tasks/router.py": clock,
+    }
+
+    assert _report_for(tmp_path, files, "svc/src") == []
+
+
+def test_keeps_a_module_another_shared_module_imports_relatively(
+    tmp_path: Path,
+) -> None:
+    user = "from shared.models.user import User\n"
+    files = {
+        "src/shared/models/base.py": "class Base:\n    pass\n",
+        "src/shared/models/user.py": "from .base import Base\n",
+        "src/features/notes/router.py": user,
+        "src/features/tasks/router.py": user,
+    }
+
+    assert _report_for(tmp_path, files) == []

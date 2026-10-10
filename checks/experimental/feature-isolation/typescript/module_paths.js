@@ -11,6 +11,9 @@ const EMITTED_EXTENSIONS = new Map([
   [".cjs", [".cts", ".d.cts"]],
 ]);
 const TYPESCRIPT_EXTENSION = /(\.d)?\.(tsx?|mts|cts)$/;
+const NO_INPUTS_FOUND = 18003;
+
+const compilerOptionsByConfig = new Map();
 
 function featureSegmentsOf(sourceDirectory, filePath) {
   const featuresRoot = path.join(sourceDirectory, FEATURES_DIRECTORY);
@@ -50,8 +53,74 @@ function modulesNamed(target) {
   return [...asFile, ...asDirectory];
 }
 
-function resolveImport(importingFile, specifier) {
-  if (!specifier.startsWith(".")) return null;
+function configErrorOf(typescript, config, diagnostic) {
+  const message = typescript.flattenDiagnosticMessageText(
+    diagnostic.messageText,
+    " ",
+  );
+
+  return new Error(`${config}: ${message}`);
+}
+
+function compilerOptionsIn(typescript, config) {
+  const read = typescript.readConfigFile(config, typescript.sys.readFile);
+
+  if (read.error !== undefined) {
+    throw configErrorOf(typescript, config, read.error);
+  }
+
+  const parsed = typescript.parseJsonConfigFileContent(
+    read.config,
+    typescript.sys,
+    path.dirname(config),
+    undefined,
+    config,
+  );
+  const errors = parsed.errors.filter(
+    (error) => error.code !== NO_INPUTS_FOUND,
+  );
+
+  if (errors.length > 0) throw configErrorOf(typescript, config, errors[0]);
+
+  return parsed.options;
+}
+
+function compilerOptionsFor(typescript, importingFile) {
+  const config = typescript.findConfigFile(
+    path.dirname(path.resolve(importingFile)),
+    typescript.sys.fileExists,
+  );
+
+  if (config === undefined) return null;
+
+  if (!compilerOptionsByConfig.has(config)) {
+    compilerOptionsByConfig.set(config, compilerOptionsIn(typescript, config));
+  }
+
+  return compilerOptionsByConfig.get(config);
+}
+
+function resolveProjectImport(typescript, importingFile, specifier) {
+  const options = compilerOptionsFor(typescript, importingFile);
+
+  if (options === null) return null;
+
+  const resolved = typescript.resolveModuleName(
+    specifier,
+    path.resolve(importingFile),
+    options,
+    typescript.sys,
+  ).resolvedModule;
+
+  if (resolved === undefined || resolved.isExternalLibraryImport) return null;
+
+  return resolved.resolvedFileName;
+}
+
+function resolveImport(typescript, importingFile, specifier) {
+  if (!specifier.startsWith(".")) {
+    return resolveProjectImport(typescript, importingFile, specifier);
+  }
 
   const target = path.join(path.dirname(importingFile), specifier);
 
