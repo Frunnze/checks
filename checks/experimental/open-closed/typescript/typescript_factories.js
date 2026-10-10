@@ -1,3 +1,7 @@
+const path = require("path");
+
+const ECMASCRIPT_LIBRARY = /^lib\.es/u;
+
 function declarationNames(typescript, sourceFiles) {
   const abstractions = new Set();
 
@@ -30,26 +34,61 @@ function annotationName(typescript, node) {
   return undefined;
 }
 
-function newDependencies(typescript, owner) {
-  const found = new Set();
+function isInstanceAssignment(typescript, node) {
+  return (
+    typescript.isBinaryExpression(node) &&
+    node.operatorToken.kind === typescript.SyntaxKind.EqualsToken &&
+    typescript.isPropertyAccessExpression(node.left) &&
+    node.left.expression.kind === typescript.SyntaxKind.ThisKeyword
+  );
+}
+
+function instanceValues(typescript, owner) {
+  const values = [];
 
   function visit(node) {
-    if (typescript.isNewExpression(node)) {
-      const name = node.expression.getText().split(".").at(-1);
-
-      if (/^[A-Z]/u.test(name)) found.add(name);
-    }
+    if (isInstanceAssignment(typescript, node)) values.push(node.right);
 
     typescript.forEachChild(node, visit);
   }
 
   for (const member of owner.members) {
+    if (typescript.isConstructorDeclaration(member)) visit(member);
     if (
-      typescript.isConstructorDeclaration(member) ||
-      typescript.isPropertyDeclaration(member)
+      typescript.isPropertyDeclaration(member) &&
+      member.initializer !== undefined
     ) {
-      visit(member);
+      values.push(member.initializer);
     }
+  }
+
+  return values;
+}
+
+function isLanguageBuiltIn(context, expression) {
+  const declaration =
+    context.checker.getSymbolAtLocation(expression)?.valueDeclaration;
+
+  if (declaration === undefined) return false;
+
+  const sourceFile = declaration.getSourceFile();
+
+  return (
+    context.program.isSourceFileDefaultLibrary(sourceFile) &&
+    ECMASCRIPT_LIBRARY.test(path.basename(sourceFile.fileName))
+  );
+}
+
+function newDependencies(context, owner) {
+  const found = new Set();
+
+  for (const value of instanceValues(context.typescript, owner)) {
+    if (!context.typescript.isNewExpression(value)) continue;
+    if (isLanguageBuiltIn(context, value.expression)) continue;
+
+    const name = value.expression.getText().split(".").at(-1);
+
+    if (/^[A-Z]/u.test(name)) found.add(name);
   }
 
   return found;
@@ -81,7 +120,7 @@ function factoryReports(context) {
             (name) => name !== undefined && abstractions.has(name),
           ),
       );
-      const dependencies = newDependencies(context.typescript, node);
+      const dependencies = newDependencies(context, node);
 
       if (returns.size > 0 && dependencies.size > 0) {
         const start = sourceFile.getLineAndCharacterOfPosition(

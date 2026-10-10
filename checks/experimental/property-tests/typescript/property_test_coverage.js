@@ -2,14 +2,18 @@ const fs = require("fs");
 const path = require("path");
 const { describesNoBehaviour } = require("./stateless_definitions");
 const { definedIn } = require("./definitions");
+const { propertyTestNamesIn } = require("./property_test_names");
 
 const TESTS_DIRECTORY = "tests";
+const PARENT_DIRECTORY = "..";
 const PROPERTY_MARKER = " property";
-const PROPERTY_ASSERTION = "fc.assert(";
-const TEST_CALLS = ["it", "test"];
 
 const typescript = require(process.argv[2]);
-const sourceFolder = process.argv[3];
+const sourceDirectory = process.argv[3];
+const testsDirectory = path.join(
+  path.dirname(sourceDirectory),
+  TESTS_DIRECTORY,
+);
 
 function scriptKindOf(filePath) {
   return filePath.endsWith(".tsx")
@@ -27,56 +31,19 @@ function parse(filePath) {
   );
 }
 
-function packageOf(filePath) {
-  const segments = path.resolve(filePath).split(path.sep);
-  const boundary = segments.lastIndexOf(TESTS_DIRECTORY);
+function isWithin(directory, filePath) {
+  const relative = path.relative(directory, filePath);
 
-  if (boundary !== -1) return segments.slice(0, boundary).join(path.sep);
-
-  const sourceRoot = segments.lastIndexOf(sourceFolder);
-
-  return segments.slice(0, sourceRoot).join(path.sep);
+  return relative !== "" && relative.split(path.sep)[0] !== PARENT_DIRECTORY;
 }
 
-function isTestPath(filePath) {
-  return path.resolve(filePath).split(path.sep).includes(TESTS_DIRECTORY);
-}
-
-function collectPropertyTestNames(node, found) {
-  const name = propertyTestNameOf(node);
-
-  if (name !== null) found.add(name);
-
-  typescript.forEachChild(node, (child) =>
-    collectPropertyTestNames(child, found),
-  );
-}
-
-function isTestCall(node) {
-  return (
-    typescript.isIdentifier(node.expression) &&
-    TEST_CALLS.includes(node.expression.text)
-  );
-}
-
-function propertyTestNameOf(node) {
-  if (!typescript.isCallExpression(node)) return null;
-  if (!isTestCall(node)) return null;
-
-  const title = node.arguments[0];
-
-  if (title === undefined) return null;
-  if (!typescript.isStringLiteralLike(title)) return null;
-  if (!node.getText().includes(PROPERTY_ASSERTION)) return null;
-
-  return title.text;
-}
-
-function propertyTestNamesIn(paths) {
+function propertyTestsIn(paths) {
   const found = new Set();
 
   for (const filePath of paths) {
-    collectPropertyTestNames(parse(filePath), found);
+    for (const name of propertyTestNamesIn(typescript, parse(filePath))) {
+      found.add(name);
+    }
   }
 
   return found;
@@ -114,31 +81,24 @@ function untestedIn(filePath, propertyTests) {
   return found;
 }
 
-function groupByPackage(paths) {
-  const grouped = new Map();
+function filesByRole(paths) {
+  const roles = { sources: [], tests: [] };
 
   for (const filePath of paths) {
-    const owner = packageOf(filePath);
-    const bucket = grouped.get(owner) ?? { sources: [], tests: [] };
-
-    if (isTestPath(filePath)) bucket.tests.push(filePath);
-    else bucket.sources.push(filePath);
-
-    grouped.set(owner, bucket);
+    if (isWithin(testsDirectory, filePath)) roles.tests.push(filePath);
+    else if (isWithin(sourceDirectory, filePath)) roles.sources.push(filePath);
   }
 
-  return grouped;
+  return roles;
 }
 
-const givenPaths = fs.readFileSync(0, "utf8").split(/\s+/).filter(Boolean);
+const givenPaths = fs.readFileSync(0, "utf8").split("\n").filter(Boolean);
+const roles = filesByRole(givenPaths);
+const propertyTests = propertyTestsIn(roles.tests);
 const reported = [];
 
-for (const bucket of groupByPackage(givenPaths).values()) {
-  const propertyTests = propertyTestNamesIn(bucket.tests);
-
-  for (const filePath of bucket.sources) {
-    reported.push(...untestedIn(filePath, propertyTests));
-  }
+for (const filePath of roles.sources) {
+  reported.push(...untestedIn(filePath, propertyTests));
 }
 
 reported.sort((left, right) =>

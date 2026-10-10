@@ -6,9 +6,10 @@ echo "pre-commit: dependency inversion in python (depend on abstractions)"
 
 shared_finders="$(dirname "$0")/../../open-closed/python"
 
-constructions=$(python_files_in "$@" \
+findings=$(python_files_in "$@" \
     | PYTHONPATH="$shared_finders" "$toolkit_python" \
-    "$(dirname "$0")/constructed_collaborators.py" | reportable_findings)
+    "$(dirname "$0")/constructed_collaborators.py")
+constructions=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$constructions" \
     "these dependency inversion risks were detected:" \

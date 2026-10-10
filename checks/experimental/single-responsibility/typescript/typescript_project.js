@@ -20,7 +20,7 @@ function compilerOptions(filePath) {
 
 function projectModules(source) {
   const { options, config } = compilerOptions(source.fileName);
-  const modules = {};
+  const modules = Object.create(null);
   function visit(node) {
     let specifier = node.moduleSpecifier;
     if (ts.isExternalModuleReference(node)) specifier = node.expression;

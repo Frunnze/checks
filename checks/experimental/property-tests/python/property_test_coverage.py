@@ -19,41 +19,26 @@ class UntestedDefinition(NamedTuple):
 
 
 class SplitPaths(NamedTuple):
-    sources: dict[str, list[Path]]
-    tests: dict[str, list[Path]]
-
-
-class ServiceName:
-    def __init__(self, source_folder: str) -> None:
-        self._source_folder = source_folder
-
-    def of(self, path: Path) -> str:
-        parts = path.parts
-
-        if TESTS_DIRECTORY in parts:
-            boundary = parts.index(TESTS_DIRECTORY)
-        else:
-            boundary = parts.index(self._source_folder)
-
-        return "/".join(parts[:boundary])
+    sources: list[Path]
+    tests: list[Path]
 
 
 class SourcesAndTests:
-    def __init__(self, source_folder: str) -> None:
-        self._source_folder = source_folder
+    def __init__(self, source_directory: Path) -> None:
+        self._source_directory = source_directory
+        self._tests_directory = source_directory.parent / TESTS_DIRECTORY
 
     def split(self, paths: list[str]) -> SplitPaths:
-        sources: dict[str, list[Path]] = {}
-        tests: dict[str, list[Path]] = {}
-        service = ServiceName(self._source_folder)
+        sources: list[Path] = []
+        tests: list[Path] = []
 
         for given_path in paths:
             path = Path(given_path)
 
-            if TESTS_DIRECTORY in path.parts:
-                tests.setdefault(service.of(path), []).append(path)
-            elif self._source_folder in path.parts:
-                sources.setdefault(service.of(path), []).append(path)
+            if path.is_relative_to(self._tests_directory):
+                tests.append(path)
+            elif path.is_relative_to(self._source_directory):
+                sources.append(path)
 
         return SplitPaths(sources, tests)
 
@@ -68,7 +53,7 @@ class PropertyTestNames:
         return found
 
     def _in_file(self, path: Path) -> set[str]:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(path.read_bytes(), filename=str(path))
         found: set[str] = set()
 
         for node in ast.walk(tree):
@@ -106,27 +91,23 @@ class PropertyTestName:
 
 
 class UntestedDefinitions:
-    def __init__(self, source_folder: str) -> None:
-        self._source_folder = source_folder
+    def __init__(self, source_directory: Path) -> None:
+        self._source_directory = source_directory
 
     def find_in(self, paths: list[str]) -> list[UntestedDefinition]:
-        split = SourcesAndTests(self._source_folder).split(paths)
+        split = SourcesAndTests(self._source_directory).split(paths)
+        property_tests = PropertyTestNames().collected_from(split.tests)
         found: list[UntestedDefinition] = []
 
-        for service, sources in split.sources.items():
-            property_tests = PropertyTestNames().collected_from(
-                split.tests.get(service, [])
-            )
-
-            for path in sources:
-                found.extend(self._find_in_file(path, property_tests))
+        for path in split.sources:
+            found.extend(self._find_in_file(path, property_tests))
 
         return sorted(found)
 
     def _find_in_file(
         self, path: Path, property_tests: set[str]
     ) -> list[UntestedDefinition]:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(path.read_bytes(), filename=str(path))
         stateless = StatelessDefinition()
         found: list[UntestedDefinition] = []
 
@@ -156,10 +137,10 @@ class UntestedDefinitions:
         return False
 
 
-source_folder = sys.argv[1]
-source_paths = sys.stdin.read().split()
+source_directory = Path(sys.argv[1])
+source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
-for untested in UntestedDefinitions(source_folder).find_in(source_paths):
+for untested in UntestedDefinitions(source_directory).find_in(source_paths):
     expected = PropertyTestName().expected_for(untested.name) + "*"
     _ = sys.stdout.write(
         f"{untested.path}:{untested.line_number}: {untested.name} "

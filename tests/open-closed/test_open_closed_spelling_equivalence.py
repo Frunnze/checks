@@ -127,3 +127,116 @@ def test_extracted_constant_dispatch_property_matches_literal_dispatch(
     )
 
     assert verdicts["constants"] == verdicts["literals"]
+
+
+def _enum_module(variants: list[str]) -> str:
+    members = "".join(
+        f"    {variant.upper()} = {variant!r}\n" for variant in variants
+    )
+
+    return f"from enum import Enum\n\n\nclass Kind(Enum):\n{members}\n\n"
+
+
+def _node_classes(variants: list[str]) -> str:
+    return "".join(
+        f"class {variant.title()}Node:\n    pass\n\n\n" for variant in variants
+    )
+
+
+def _guarded_route(subject: str, condition: str) -> str:
+    return (
+        f"def route({subject}):\n"
+        f"    if {condition}:\n        return 1\n"
+        "    return -1\n"
+    )
+
+
+@given(subject=subject_names, variants=variant_sets)
+@example(subject=_SUBJECT, variants=_VARIANTS)
+@settings(max_examples=60, deadline=None)
+def test_enum_dispatch_property_identity_matches_equality(
+    subject: str, variants: list[str]
+) -> None:
+    equality = enum_chain(subject, variants)
+    verdicts = _verdicts(
+        {
+            "equality": equality,
+            "identity": equality.replace(" == Kind.", " is Kind."),
+        }
+    )
+
+    assert verdicts["identity"] == verdicts["equality"]
+
+
+@given(subject=subject_names, variants=variant_sets)
+@example(subject=_SUBJECT, variants=_VARIANTS)
+@settings(max_examples=60, deadline=None)
+def test_enum_dispatch_property_membership_matches_or_chain(
+    subject: str, variants: list[str]
+) -> None:
+    members = [f"Kind.{variant.upper()}" for variant in variants]
+    expanded = " or ".join(f"{subject} == {member}" for member in members)
+    contained = f"{subject} in ({', '.join(members)})"
+    verdicts = _verdicts(
+        {
+            "expanded": _enum_module(variants)
+            + _guarded_route(subject, expanded),
+            "membership": _enum_module(variants)
+            + _guarded_route(subject, contained),
+        }
+    )
+
+    assert verdicts["membership"] == verdicts["expanded"]
+
+
+@given(subject=subject_names, variants=variant_sets)
+@example(subject=_SUBJECT, variants=_VARIANTS)
+@settings(max_examples=60, deadline=None)
+def test_type_dispatch_property_isinstance_union_matches_tuple(
+    subject: str, variants: list[str]
+) -> None:
+    names = [f"{variant.title()}Node" for variant in variants]
+    tupled = f"isinstance({subject}, ({', '.join(names)}))"
+    unioned = f"isinstance({subject}, {' | '.join(names)})"
+    classes = _node_classes(variants)
+
+    assert findings_for(
+        {"a.py": classes + _guarded_route(subject, unioned)}
+    ) == findings_for({"a.py": classes + _guarded_route(subject, tupled)})
+
+
+@given(subject=subject_names, variants=variant_sets)
+@example(subject=_SUBJECT, variants=_VARIANTS)
+@settings(max_examples=60, deadline=None)
+def test_type_dispatch_property_membership_matches_identity_chain(
+    subject: str, variants: list[str]
+) -> None:
+    names = [f"{variant.title()}Node" for variant in variants]
+    chained = " or ".join(f"type({subject}) is {name}" for name in names)
+    contained = f"type({subject}) in ({', '.join(names)})"
+    classes = _node_classes(variants)
+
+    assert findings_for(
+        {"a.py": classes + _guarded_route(subject, contained)}
+    ) == findings_for({"a.py": classes + _guarded_route(subject, chained)})
+
+
+@given(variants=variant_sets)
+@example(variants=_VARIANTS)
+@settings(max_examples=60, deadline=None)
+def test_literal_axis_property_type_statement_matches_assignment(
+    variants: list[str],
+) -> None:
+    values = ", ".join(repr(variant) for variant in variants)
+    entries = ", ".join(f"{variant!r}: len" for variant in variants)
+    registries = (
+        f"ENDPOINTS: dict[Channel, object] = {{{entries}}}\n"
+        f"LABELS: dict[Channel, object] = {{{entries}}}\n"
+    )
+    header = "from typing import Literal\n"
+    assigned = f"{header}Channel = Literal[{values}]\n{registries}"
+    declared = f"{header}type Channel = Literal[{values}]\n{registries}"
+
+    assert findings_for({"p.py": declared}) == findings_for(
+        {"p.py": assigned}
+    )

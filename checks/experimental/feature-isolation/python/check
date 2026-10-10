@@ -9,11 +9,12 @@ echo "pre-commit: shared)"
 
 require_feature_layout features "$@"
 
-crossings=$(for source_directory in "$@"; do
+findings=$(for source_directory in "$@"; do
     python_files_in "$source_directory" \
         | "$toolkit_python" "$(dirname "$0")/feature_imports.py" \
-        "$(basename "$source_directory")"
-done | reportable_findings)
+        "$source_directory"
+done)
+crossings=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$crossings" \
     "these features reach into a sibling - move what they share into" \
@@ -21,11 +22,12 @@ fail_on_findings "$crossings" \
 
 echo "pre-commit: shared ownership (two features or it is not shared)"
 
-lonely=$(for source_directory in "$@"; do
+findings=$(for source_directory in "$@"; do
     python_files_in "$source_directory" \
         | "$toolkit_python" "$(dirname "$0")/shared_usage.py" \
-        "$(basename "$source_directory")"
-done | reportable_findings)
+        "$source_directory"
+done)
+lonely=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$lonely" \
     "shared/ is for what several features need - move each of these" \

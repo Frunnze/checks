@@ -55,6 +55,13 @@ function methodsIn(typescript, declaration) {
     if (isMethod && member.name !== undefined) {
       found.push({ name: member.name.getText(), node: member });
     }
+
+    if (
+      typescript.isPropertyDeclaration(member) &&
+      isFunctionValue(typescript, member.initializer)
+    ) {
+      found.push({ name: member.name.getText(), node: member.initializer });
+    }
   }
 
   return found;

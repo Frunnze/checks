@@ -85,15 +85,32 @@ function collectScope(source, node, owner, inherited, globals, facts, owners, vi
   }
 }
 
+function sourceError(filePath, source, position, message) {
+  const line = source.getLineAndCharacterOfPosition(position).line + 1;
+  return new Error(`${filePath}:${line}: ${message}`);
+}
+
+function nonStringModuleSpecifier(source) {
+  const declaration = source.statements.find(statement =>
+    (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) &&
+    statement.moduleSpecifier &&
+    !ts.isStringLiteral(statement.moduleSpecifier));
+  return declaration?.moduleSpecifier;
+}
+
 function factsFor(filePath) {
   const kind = filePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
   const source = ts.createSourceFile(filePath, fs.readFileSync(filePath, "utf8"),
     ts.ScriptTarget.Latest, true, kind);
   if (source.parseDiagnostics.length) {
     const diagnostic = source.parseDiagnostics[0];
-    const line = source.getLineAndCharacterOfPosition(diagnostic.start ?? 0).line + 1;
-    throw new Error(`${filePath}:${line}: ${ts.flattenDiagnosticMessageText(
-      diagnostic.messageText, " ")}`);
+    throw sourceError(filePath, source, diagnostic.start ?? 0,
+      ts.flattenDiagnosticMessageText(diagnostic.messageText, " "));
+  }
+  const specifier = nonStringModuleSpecifier(source);
+  if (specifier) {
+    throw sourceError(filePath, source, specifier.getStart(source),
+      "String literal expected.");
   }
   const project = projectModules(source);
   const exported = moduleExports(source, scopeName, project.modules);

@@ -1,6 +1,6 @@
 from settings_validation import (
-    ConfigurationError,
     as_list,
+    validate_choice,
     validate_known_keys,
 )
 
@@ -28,11 +28,7 @@ def dependency_analyser_configuration(section: dict[str, object]) -> str:
     setting_name = "composer-dependency-analyser.ignore-errors"
 
     for error_type in as_list(setting_name, section.get("ignore-errors", [])):
-        if error_type not in ANALYSER_ERROR_TYPES:
-            choices = ", ".join(sorted(ANALYSER_ERROR_TYPES))
-            message = f"{setting_name}: {error_type} is not one of {choices}"
-            raise ConfigurationError(message)
-
+        validate_choice(setting_name, error_type, ANALYSER_ERROR_TYPES)
         ignored_errors.append(f"ErrorType::{error_type}")
 
     return ANALYSER_MODULE.format(ignored_errors=", ".join(ignored_errors))

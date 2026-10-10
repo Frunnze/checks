@@ -23,7 +23,7 @@ class NestedDefinitions:
         return sorted(found)
 
     def _find_in_file(self, path: Path) -> list[NestedDefinition]:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(path.read_bytes(), filename=str(path))
         found: list[NestedDefinition] = []
 
         for scope in ast.walk(tree):
@@ -58,7 +58,7 @@ class NestedDefinitions:
         return found
 
 
-source_paths = sys.stdin.read().split()
+source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
 for nested in NestedDefinitions().find_in(source_paths):
     _ = sys.stdout.write(

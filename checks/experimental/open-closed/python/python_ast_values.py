@@ -21,7 +21,11 @@ def literal_annotation(node: ast.AST) -> set[str] | None:
     return domain if len(domain) == len(values) else None
 
 
-def assigned_name(node: ast.Assign | ast.AnnAssign) -> str | None:
+def assigned_name(
+    node: ast.Assign | ast.AnnAssign | ast.TypeAlias,
+) -> str | None:
+    if isinstance(node, ast.TypeAlias):
+        return node.name.id
     if isinstance(node, ast.AnnAssign):
         return node.target.id if isinstance(node.target, ast.Name) else None
     if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):

@@ -1,9 +1,23 @@
+import tempfile
 from pathlib import Path
+
+from hypothesis import example, given, settings
+from hypothesis import strategies as st
 
 from typescript_finder_support import CHECKS, report_from
 
 _FINDER = CHECKS / "experimental" / "nested-definitions" / "typescript" / "nested_definitions.js"
 _MODULE = "src/features/folder/units.ts"
+_NESTED = (
+    "export function outer(): number {\n"
+    "  function inner(): number { return 1; }\n"
+    "  return inner();\n"
+    "}\n"
+)
+
+file_names_with_whitespace = st.text(
+    alphabet="abcXYZ019_. \t", min_size=1, max_size=8
+)
 
 
 def _report_for(tmp_path: Path, source: str) -> list[str]:
@@ -100,3 +114,15 @@ def test_allows_functions_declared_side_by_side(tmp_path: Path) -> None:
     )
 
     assert _report_for(tmp_path, source) == []
+
+
+@given(name=file_names_with_whitespace)
+@example(name="my module")
+@settings(max_examples=8, deadline=None)
+def test_finder_property_reads_a_path_with_whitespace(name: str) -> None:
+    module = f"src/d/{name}.ts"
+
+    with tempfile.TemporaryDirectory() as directory:
+        report = report_from(_FINDER, Path(directory), {module: _NESTED})
+
+    assert report == [f"{module}:2: inner"]

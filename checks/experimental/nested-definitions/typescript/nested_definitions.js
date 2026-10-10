@@ -82,7 +82,7 @@ function nestedDefinitionsIn(filePath) {
 }
 
 const reported = new Set();
-const sourcePaths = fs.readFileSync(0, "utf8").split(/\s+/).filter(Boolean);
+const sourcePaths = fs.readFileSync(0, "utf8").split("\n").filter(Boolean);
 
 for (const filePath of sourcePaths) {
   for (const nested of nestedDefinitionsIn(filePath)) reported.add(nested);

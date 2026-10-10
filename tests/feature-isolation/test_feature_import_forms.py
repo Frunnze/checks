@@ -32,13 +32,33 @@ Concrete inputs -> expected outputs:
    "...router.py:1: features.scheduling"]
 """
 
+import keyword
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
+from typing import NamedTuple
+
+from hypothesis import example, given
+from hypothesis import strategies as st
+
+from check_support import HYPOTHESIS_SETTINGS
 
 _CHECKS = Path(__file__).resolve().parents[2] / "checks"
 _CHECKER = _CHECKS / "experimental" / "feature-isolation" / "python" / "feature_imports.py"
 _FEATURES = Path("service/src/features")
+_NAMES = st.from_regex(r"[a-z]{3,8}", fullmatch=True).filter(
+    lambda name: not keyword.iskeyword(name)
+)
+
+
+class _Layout(NamedTuple):
+    importer: list[str]
+    target: list[str]
+    module: str
+
+
+_PARENT_MODULE = _Layout(["units", "authoring"], ["units"], "formatting")
 
 
 def _report(
@@ -55,7 +75,7 @@ def _report(
     _ = module.write_text(source, encoding="utf-8")
 
     finished = subprocess.run(
-        [sys.executable, str(_CHECKER), "src"],
+        [sys.executable, str(_CHECKER), "service/src"],
         input=str(relative),
         capture_output=True,
         text=True,
@@ -193,3 +213,57 @@ def test_allows_the_bare_features_package(tmp_path: Path) -> None:
     )
 
     assert report == []
+
+
+@st.composite
+def _layouts(draw: st.DrawFn) -> _Layout:
+    own = draw(_NAMES)
+    other = draw(_NAMES.filter(lambda name: name != own))
+    own_sub = draw(st.lists(_NAMES, max_size=2))
+    target_feature = draw(st.sampled_from((own, other)))
+    target_sub = draw(st.lists(_NAMES, max_size=2))
+
+    if target_feature == own and draw(st.booleans()):
+        target_sub = own_sub[: draw(st.integers(0, len(own_sub)))]
+
+    target = [target_feature, *target_sub]
+
+    return _Layout([own, *own_sub], target, draw(_NAMES))
+
+
+def _relative_import(layout: _Layout) -> str:
+    shared_depth = 0
+
+    for mine, theirs in zip(layout.importer, layout.target, strict=False):
+        if mine != theirs:
+            break
+
+        shared_depth += 1
+
+    dots = "." * (len(layout.importer) - shared_depth + 1)
+    module = ".".join([*layout.target[shared_depth:], layout.module])
+
+    return f"from {dots}{module} import thing\n"
+
+
+def _absolute_import(layout: _Layout) -> str:
+    module = ".".join(["features", *layout.target, layout.module])
+
+    return f"from {module} import thing\n"
+
+
+@HYPOTHESIS_SETTINGS
+@given(layout=_layouts())
+@example(layout=_PARENT_MODULE)
+def test_relative_import_property_judged_like_its_absolute_twin(
+    layout: _Layout,
+) -> None:
+    importer = _FEATURES.joinpath(*layout.importer, "importer.py")
+    packages = ("/".join(layout.target),)
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        absolute = _report(root, importer, _absolute_import(layout), packages)
+        relative = _report(root, importer, _relative_import(layout), packages)
+
+    assert bool(relative) == bool(absolute)

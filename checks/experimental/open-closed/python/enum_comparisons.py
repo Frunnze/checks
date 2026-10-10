@@ -1,6 +1,11 @@
 import ast
 
-from ocp_findings import EQUALITY_NODES, MAXIMUM_VARIANTS
+from ocp_findings import (
+    CONTAINER_NODES,
+    IDENTITY_NODES,
+    MAXIMUM_VARIANTS,
+    MEMBERSHIP_NODES,
+)
 from scoped_visitor import ScopedVisitor
 
 
@@ -23,8 +28,10 @@ class EnumComparisons(ScopedVisitor):
         return sorted(found)
 
     def visit_Compare(self, node: ast.Compare) -> None:
-        if len(node.ops) == 1 and isinstance(node.ops[0], EQUALITY_NODES):
+        if len(node.ops) == 1 and isinstance(node.ops[0], IDENTITY_NODES):
             self._record_comparison(node.left, node.comparators[0])
+        elif len(node.ops) == 1 and isinstance(node.ops[0], MEMBERSHIP_NODES):
+            self._record_membership(node.left, node.comparators[0])
 
         self.generic_visit(node)
 
@@ -42,10 +49,19 @@ class EnumComparisons(ScopedVisitor):
         elif member_reference(left) is not None:
             self._record(right, left)
 
+    def _record_membership(
+        self, subject: ast.expr, container: ast.expr
+    ) -> None:
+        if not isinstance(container, CONTAINER_NODES):
+            return
+
+        for element in container.elts:
+            self._record(subject, element)
+
     def _record(self, subject: ast.expr, member: ast.expr) -> None:
         reference = member_reference(member)
 
-        if reference is None:
+        if reference is None or isinstance(subject, ast.Constant):
             return
 
         owner, name = reference

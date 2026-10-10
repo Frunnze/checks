@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 SHARED_PACKAGE = "shared"
+SHARED_PREFIX = f"{SHARED_PACKAGE}."
 FEATURES_PACKAGE = "features"
 MINIMUM_FEATURES = 2
 
@@ -15,31 +16,25 @@ class LonelyModule(NamedTuple):
 
 
 class ModuleName:
-    def __init__(self, source_folder: str) -> None:
-        self._source_folder = source_folder
+    def __init__(self, source_directory: Path) -> None:
+        self._source_directory = source_directory
 
     def of(self, path: Path) -> str:
-        parts = path.parts
-        index = parts.index(self._source_folder)
-        trail = parts[index + 1 :]
+        trail = path.relative_to(self._source_directory).parts
         dotted = ".".join(trail).removesuffix(".py")
 
         return dotted.removesuffix(".__init__")
 
 
 class OwningFeature:
+    def __init__(self, source_directory: Path) -> None:
+        self._features_directory = source_directory / FEATURES_PACKAGE
+
     def of(self, path: Path) -> str | None:
-        parts = path.parts
-
-        if FEATURES_PACKAGE not in parts:
+        if not path.is_relative_to(self._features_directory):
             return None
 
-        index = parts.index(FEATURES_PACKAGE)
-
-        if index + 1 >= len(parts):
-            return None
-
-        return parts[index + 1]
+        return path.relative_to(self._features_directory).parts[0]
 
 
 class SharedImports:
@@ -55,7 +50,10 @@ class SharedImports:
 
     def _modules_of(self, node: ast.AST) -> list[str]:
         if isinstance(node, ast.ImportFrom):
-            return [] if node.level else [node.module or ""]
+            if node.level or node.module is None:
+                return []
+
+            return [f"{node.module}.{alias.name}" for alias in node.names]
 
         if isinstance(node, ast.Import):
             return [alias.name for alias in node.names]
@@ -64,27 +62,27 @@ class SharedImports:
 
 
 class ImportedModule:
-    def owning(self, imported: str, known: set[str]) -> str | None:
+    def owners(self, imported: str, known: set[str]) -> list[str]:
+        found: list[str] = []
         candidate = imported
 
         while candidate:
             if candidate in known:
-                return candidate
+                found.append(candidate)
 
             candidate = candidate.rpartition(".")[0]
 
-        return None
+        return found
 
 
 class LonelyModules:
-    def __init__(self, source_folder: str) -> None:
-        self._module_name = ModuleName(source_folder)
+    def __init__(self, source_directory: Path) -> None:
+        self._module_name = ModuleName(source_directory)
+        self._owning_feature = OwningFeature(source_directory)
 
     def find_in(self, paths: list[str]) -> list[LonelyModule]:
         modules = {self._module_name.of(Path(p)): p for p in paths}
-        shared = {
-            name for name in modules if name.split(".")[0] == SHARED_PACKAGE
-        }
+        shared = {name for name in modules if name.startswith(SHARED_PREFIX)}
         callers: dict[str, set[str]] = defaultdict(set)
         kept: set[str] = set()
 
@@ -100,20 +98,16 @@ class LonelyModules:
         callers: dict[str, set[str]],
         kept: set[str],
     ) -> None:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        feature = OwningFeature().of(path)
+        tree = ast.parse(path.read_bytes(), filename=str(path))
+        feature = self._owning_feature.of(path)
         owning = ImportedModule()
 
         for imported in SharedImports().in_(tree):
-            owner = owning.owning(imported, shared)
-
-            if owner is None:
-                continue
-
-            if feature is not None:
-                callers[owner].add(feature)
-            elif self._module_name.of(path) != owner:
-                kept.add(owner)
+            for owner in owning.owners(imported, shared):
+                if feature is not None:
+                    callers[owner].add(feature)
+                elif self._module_name.of(path) != owner:
+                    kept.add(owner)
 
     def _lonely(
         self,
@@ -138,10 +132,10 @@ class LonelyModules:
         return found
 
 
-source_folder = sys.argv[1]
-source_paths = sys.stdin.read().split()
+source_directory = Path(sys.argv[1])
+source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
-for lonely in LonelyModules(source_folder).find_in(source_paths):
+for lonely in LonelyModules(source_directory).find_in(source_paths):
     if lonely.features:
         reason = f"only {lonely.features[0]} imports it"
     else:

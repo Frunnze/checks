@@ -16,8 +16,10 @@ from ocp_findings import (
     ScatteredVariantDispatch,
     VariantDispatch,
 )
+from python_structure_types import parsed_module
 from python_structures import structural_findings
 from scattered_comparisons import scattered_comparisons, top_level_scopes
+from standard_input import paths_from_standard_input
 from string_comparisons import StringComparisons
 
 
@@ -31,7 +33,7 @@ class VariantDispatches:
         return sorted(found)
 
     def _find_in_file(self, path: Path) -> list[Finding]:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = parsed_module(str(path))
         constants = string_constants(tree)
         found: list[Finding] = list(
             scattered_comparisons(
@@ -134,7 +136,7 @@ def message_for(dispatch: Finding) -> str:
 
 
 def main() -> None:
-    source_paths = sys.stdin.read().split()
+    source_paths = paths_from_standard_input()
 
     for dispatch in VariantDispatches().find_in(source_paths):
         _ = sys.stdout.write(

@@ -17,6 +17,7 @@ from settings_validation import (
     ConfigurationError,
     as_list,
     as_table,
+    validate_choice,
     validate_known_keys,
 )
 
@@ -65,10 +66,7 @@ def eslint_configuration(
     chosen_presets = as_list("eslint.presets", section.get("presets", []))
 
     for preset_name in chosen_presets:
-        if preset_name not in ESLINT_PRESETS:
-            choices = ", ".join(sorted(ESLINT_PRESETS))
-            message = f"eslint.presets: {preset_name} is not one of {choices}"
-            raise ConfigurationError(message)
+        validate_choice("eslint.presets", preset_name, ESLINT_PRESETS)
 
     user_configs: list[dict[str, object]] = []
     rules = as_table("eslint.rules", section.get("rules", {}))
@@ -159,7 +157,12 @@ def phpcs_configuration(
             ruleset, "config", name=config_name, value=str(config_value)
         )
 
-    standard = str(section.get("standard", DEFAULT_PHPCS_STANDARD))
+    standard = section.get("standard", DEFAULT_PHPCS_STANDARD)
+
+    if not isinstance(standard, str):
+        message = "phpcs.standard must be a string"
+        raise ConfigurationError(message)
+
     standard_rule = ElementTree.SubElement(ruleset, "rule", ref=standard)
 
     for excluded_sniff in as_list("phpcs.exclude", section.get("exclude", [])):

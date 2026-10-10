@@ -1,37 +1,30 @@
-const path = require("path");
 const {
+  featureSegmentsOf,
   importsIn,
   moduleNameOf,
   readPathsFromStandardInput,
   resolveImport,
-  sourceRootOf,
 } = require("./module_paths");
 
 const SHARED_PACKAGE = "shared";
-const FEATURES_DIRECTORY = "features";
 const MINIMUM_FEATURES = 2;
 
 const typescript = require(process.argv[2]);
-const sourceFolder = process.argv[3];
+const sourceDirectory = process.argv[3];
 
 function owningFeatureOf(filePath) {
-  const segments = path.resolve(filePath).split(path.sep);
-  const index = segments.lastIndexOf(FEATURES_DIRECTORY);
+  const segments = featureSegmentsOf(sourceDirectory, filePath);
 
-  if (index === -1 || index + 1 >= segments.length) return null;
+  if (segments === null) return null;
 
-  return segments[index + 1];
+  return segments[0];
 }
 
 function sharedModulesAmong(paths) {
   const modules = new Map();
 
   for (const filePath of paths) {
-    const sourceRoot = sourceRootOf(filePath, sourceFolder);
-
-    if (sourceRoot === null) continue;
-
-    const name = moduleNameOf(sourceRoot, filePath);
+    const name = moduleNameOf(sourceDirectory, filePath);
 
     if (name.split("/")[0] === SHARED_PACKAGE) modules.set(name, filePath);
   }
@@ -40,17 +33,14 @@ function sharedModulesAmong(paths) {
 }
 
 function sharedImportsIn(filePath, shared) {
-  const sourceRoot = sourceRootOf(filePath, sourceFolder);
   const found = [];
-
-  if (sourceRoot === null) return found;
 
   for (const reference of importsIn(typescript, filePath)) {
     const resolved = resolveImport(filePath, reference.specifier);
 
     if (resolved === null) continue;
 
-    const name = moduleNameOf(sourceRoot, resolved);
+    const name = moduleNameOf(sourceDirectory, resolved);
 
     if (shared.has(name)) found.push(name);
   }
@@ -60,9 +50,7 @@ function sharedImportsIn(filePath, shared) {
 
 function recordUsage(filePath, shared, callers, kept) {
   const feature = owningFeatureOf(filePath);
-  const sourceRoot = sourceRootOf(filePath, sourceFolder);
-  const ownName =
-    sourceRoot === null ? null : moduleNameOf(sourceRoot, filePath);
+  const ownName = moduleNameOf(sourceDirectory, filePath);
 
   for (const name of sharedImportsIn(filePath, shared)) {
     if (feature !== null) {

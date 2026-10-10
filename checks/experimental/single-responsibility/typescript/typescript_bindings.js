@@ -51,11 +51,15 @@ function walkScope(node, visit) {
   });
 }
 
-function importBindings(source, modules = {}) {
+function importBindings(source, modules) {
   const bindings = new Map([
+    ["window", "global"], ["globalThis", "global"],
     ["fetch", "global.fetch"], ["document", "global.document"],
+    ["WebSocket", "global.WebSocket"],
+    ["XMLHttpRequest", "global.XMLHttpRequest"],
     ["localStorage", "global.localStorage"],
     ["sessionStorage", "global.sessionStorage"],
+    ["indexedDB", "global.indexedDB"],
     ["require", "global.require"],
   ]);
   for (const statement of source.statements) {

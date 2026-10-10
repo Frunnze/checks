@@ -1,4 +1,4 @@
-const ELEMENT_RETURN_TYPE = "JSX.Element";
+const ELEMENT_RETURN_TYPES = ["JSX.Element", "React.JSX.Element"];
 const CONSTRUCTOR_NAME = "constructor";
 
 function isCapitalised(name) {
@@ -6,7 +6,10 @@ function isCapitalised(name) {
 }
 
 function returnsAnElement(node) {
-  return node.type !== undefined && node.type.getText() === ELEMENT_RETURN_TYPE;
+  return (
+    node.type !== undefined &&
+    ELEMENT_RETURN_TYPES.includes(node.type.getText())
+  );
 }
 
 function hasNoBody(node) {

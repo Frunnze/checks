@@ -6,19 +6,43 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from module_constants import string_constants
+from python_structure_types import parsed_module
+from standard_input import paths_from_standard_input
 
 _ERROR_FIELDS = {"content", "detail", "error", "message", "reason"}
 _ERROR_CONSTRUCTORS = ("Error", "Exception", "Response")
-_QUOTED = re.compile(
-    r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|`(?:\\.|[^`\\])*`'
+_COMMENT_START = "/"
+_LEXICAL_TOKEN = re.compile(
+    r"//[^\n]*|/\*.*?\*/"
+    r'|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'|`(?:\\.|[^`\\])*`',
+    re.DOTALL,
 )
+_ESCAPE = re.compile(
+    r"\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|\r\n|.)",
+    re.DOTALL,
+)
+_CODE_POINT_ESCAPES = ("u", "x")
+_CHARACTER_ESCAPES = {
+    "0": "\0",
+    "b": "\b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+    "v": "\v",
+    "\n": "",
+    "\r": "",
+    "\r\n": "",
+    "\u2028": "",
+    "\u2029": "",
+}
 _COMPARISON_BEFORE = re.compile(r"(?:===|!==|==|!=)\s*$")
 _COMPARISON_AFTER = re.compile(r"^\s*(?:===|!==|==|!=)")
 _FIELD_BEFORE = re.compile(
     r"(?:content|detail|error|message|reason)\s*:\s*$"
 )
 _CONSTRUCTOR_BEFORE = re.compile(
-    r"new\s+[A-Za-z_$][\w$]*(?:Error|Exception|Response)\s*\(\s*$"
+    r"new\s+(?:[A-Za-z_$][\w$]*)?(?:Error|Exception|Response)\s*\(\s*$"
 )
 
 
@@ -103,21 +127,31 @@ def _python_occurrences(
     return produced, consumed
 
 
+def _unescaped(escape: re.Match[str]) -> str:
+    sequence = escape.group(1)
+
+    if len(sequence) > 1 and sequence.startswith(_CODE_POINT_ESCAPES):
+        code_point = int(sequence[1:].strip("{}"), 16)
+
+        if code_point > sys.maxunicode:
+            return escape.group()
+
+        return chr(code_point)
+
+    return _CHARACTER_ESCAPES.get(sequence, sequence)
+
+
 def _decoded_javascript_string(written: str) -> str | None:
-    if written.startswith("`"):
-        body = written[1:-1]
+    body = written[1:-1]
 
-        return None if "${" in body else bytes(body, "utf-8").decode("unicode_escape")
-
-    try:
-        if written.startswith('"'):
-            decoded: object = json.loads(written)
-        else:
-            decoded = ast.literal_eval(written)
-    except (ValueError, SyntaxError, json.JSONDecodeError):
+    if written.startswith("`") and "${" in body:
         return None
 
-    return decoded if isinstance(decoded, str) else None
+    code_units = _ESCAPE.sub(_unescaped, body).encode(
+        "utf-16-le", "surrogatepass"
+    )
+
+    return code_units.decode("utf-16-le", "surrogatepass")
 
 
 def _typescript_occurrences(
@@ -126,7 +160,10 @@ def _typescript_occurrences(
     produced: list[Occurrence] = []
     consumed: list[Occurrence] = []
 
-    for match in _QUOTED.finditer(source):
+    for match in _LEXICAL_TOKEN.finditer(source):
+        if match.group().startswith(_COMMENT_START):
+            continue
+
         value = _decoded_javascript_string(match.group())
 
         if value is None or not _is_human_message(value):
@@ -150,11 +187,10 @@ def reports_for(paths: list[str]) -> list[str]:
     consumed: list[Occurrence] = []
 
     for path in paths:
-        source = Path(path).read_text(encoding="utf-8")
-
         if path.endswith(".py"):
-            additions = _python_occurrences(path, ast.parse(source))
-        elif path.endswith((".ts", ".tsx")):
+            additions = _python_occurrences(path, parsed_module(path))
+        elif path.endswith((".ts", ".tsx", ".mts", ".cts")):
+            source = Path(path).read_text(encoding="utf-8", errors="replace")
             additions = _typescript_occurrences(path, source)
         else:
             continue
@@ -191,7 +227,7 @@ def reports_for(paths: list[str]) -> list[str]:
 
 
 def main() -> None:
-    for report in reports_for(sys.stdin.read().split()):
+    for report in reports_for(paths_from_standard_input()):
         _ = sys.stdout.write(f"{report}\n")
 
 

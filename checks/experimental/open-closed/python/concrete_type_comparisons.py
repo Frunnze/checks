@@ -1,6 +1,11 @@
 import ast
 
-from ocp_findings import MAXIMUM_VARIANTS, TYPE_EQUALITY_NODES
+from ocp_findings import (
+    CONTAINER_NODES,
+    IDENTITY_NODES,
+    MAXIMUM_VARIANTS,
+    MEMBERSHIP_NODES,
+)
 from scoped_visitor import ScopedVisitor
 
 PRIMITIVE_TYPES = {
@@ -45,7 +50,7 @@ class ConcreteTypeComparisons(ScopedVisitor):
         self.generic_visit(node)
 
     def visit_Compare(self, node: ast.Compare) -> None:
-        if len(node.ops) == 1 and isinstance(node.ops[0], TYPE_EQUALITY_NODES):
+        if len(node.ops) == 1 and isinstance(node.ops[0], IDENTITY_NODES):
             left_subject = self._type_call_subject(node.left)
             right_subject = self._type_call_subject(node.comparators[0])
             left_type = self._type_name(node.left)
@@ -55,8 +60,19 @@ class ConcreteTypeComparisons(ScopedVisitor):
                 self._record(left_subject, right_type)
             elif right_subject is not None and left_type is not None:
                 self._record(right_subject, left_type)
+        elif len(node.ops) == 1 and isinstance(node.ops[0], MEMBERSHIP_NODES):
+            self._record_membership(node.left, node.comparators[0])
 
         self.generic_visit(node)
+
+    def _record_membership(self, left: ast.expr, container: ast.expr) -> None:
+        subject = self._type_call_subject(left)
+
+        if subject is None or not isinstance(container, CONTAINER_NODES):
+            return
+
+        for concrete_type in self._types_from(container):
+            self._record(subject, concrete_type)
 
     def visit_Match(self, node: ast.Match) -> None:
         for match_case in node.cases:
@@ -81,7 +97,14 @@ class ConcreteTypeComparisons(ScopedVisitor):
         self._subjects[key] = (display, concrete_types)
 
     def _types_from(self, node: ast.expr) -> tuple[str, ...]:
-        candidates = node.elts if isinstance(node, ast.Tuple) else (node,)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+            left_types = self._types_from(node.left)
+
+            return (*left_types, *self._types_from(node.right))
+
+        candidates = (
+            node.elts if isinstance(node, CONTAINER_NODES) else (node,)
+        )
         found = []
 
         for candidate in candidates:

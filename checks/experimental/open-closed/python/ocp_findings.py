@@ -5,7 +5,8 @@ MAXIMUM_VARIANTS = 2
 FUNCTION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)
 EQUALITY_NODES = (ast.Eq, ast.NotEq)
 MEMBERSHIP_NODES = (ast.In, ast.NotIn)
-TYPE_EQUALITY_NODES = (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)
+IDENTITY_NODES = (ast.Eq, ast.NotEq, ast.Is, ast.IsNot)
+CONTAINER_NODES = (ast.Tuple, ast.List, ast.Set)
 
 
 class VariantDispatch(NamedTuple):

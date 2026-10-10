@@ -1,6 +1,7 @@
 import ast
 
 from ocp_findings import (
+    CONTAINER_NODES,
     EQUALITY_NODES,
     MAXIMUM_VARIANTS,
     MEMBERSHIP_NODES,
@@ -63,7 +64,7 @@ class StringComparisons(ScopedVisitor):
     def _record_membership(
         self, subject: ast.expr, container: ast.expr
     ) -> None:
-        if not isinstance(container, (ast.Tuple, ast.List, ast.Set)):
+        if not isinstance(container, CONTAINER_NODES):
             return
 
         for element in container.elts:

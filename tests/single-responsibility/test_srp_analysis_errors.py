@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from srp_support import CHECK
+from srp_support import CHECK, run_report
 
 from python_parsing import parse_python_module
 from srp_check import python_file_facts
@@ -23,6 +23,14 @@ BROKEN_SOURCES = {
     "not_utf8": b"\xe9 = 1\n",
     "bad_syntax": b"def broken(:\n",
 }
+OBJECT_KEY_MODULES = [
+    "constructor",
+    "toString",
+    "__proto__",
+    "valueOf",
+    "hasOwnProperty",
+    "isPrototypeOf",
+]
 
 
 def long_sum_source(term_count: int) -> str:
@@ -117,3 +125,24 @@ def test_python_file_facts_property_deep_code_fails_as_value_error(
             python_file_facts(path)
         return
     assert python_file_facts(path)["path"] == str(path)
+
+
+@pytest.mark.parametrize("module", OBJECT_KEY_MODULES)
+def test_typescript_module_named_like_an_object_key_is_analysed(
+    tmp_path, module
+):
+    source = f'import d from "{module}";\nexport const x = d;\n'
+
+    report = run_report(tmp_path, source, ".ts")
+
+    assert len(report["files"]) == 1
+
+
+def test_typescript_non_string_module_specifier_names_the_line(tmp_path):
+    path = tmp_path / "invalid.ts"
+    path.write_text("import x from a.b;\nexport const y = x;\n")
+
+    result = run_check_on(path)
+
+    assert result.returncode == ANALYSIS_ERROR_EXIT_CODE
+    assert f"{path}:1: String literal expected" in result.stderr

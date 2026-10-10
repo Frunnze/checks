@@ -17,7 +17,7 @@ def _report_at(tmp_path: Path, relative: Path, source: str) -> list[str]:
     _ = module.write_text(source, encoding="utf-8")
 
     finished = subprocess.run(
-        [sys.executable, str(_CHECKER), "src"],
+        [sys.executable, str(_CHECKER), "service/src"],
         input=str(relative),
         capture_output=True,
         text=True,
@@ -189,3 +189,15 @@ def test_says_nothing_about_a_self_contained_feature(
     source = "from shared.database import SessionLocal\n"
 
     assert _report_for(tmp_path, source) == []
+
+
+def test_reads_a_path_with_a_space(tmp_path: Path) -> None:
+    report = _report_at(
+        tmp_path,
+        _OWN_FEATURE / "my router.py",
+        "from features.scheduling import due",
+    )
+
+    assert report == [
+        "service/src/features/study_units/my router.py:1: features.scheduling"
+    ]

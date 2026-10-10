@@ -83,3 +83,40 @@ def label_registry(name: str, variants: list[str]) -> str:
     )
 
     return f"export const {name} = {{ {entries} }};\n"
+
+
+def constant_chain(variants: list[str]) -> str:
+    names = [f"{variant.upper()}_KIND" for variant in variants]
+    header = "".join(
+        f"const {name} = '{variant}';\n"
+        for name, variant in zip(names, variants, strict=True)
+    )
+    branches = "".join(
+        f"  if (kind === {name}) return {index};\n"
+        for index, name in enumerate(names)
+    )
+
+    return (
+        f"{header}\nexport function route(kind: string): number {{\n"
+        f"{branches}  return -1;\n}}\n"
+    )
+
+
+_REGISTRY_ENTRIES = {
+    "longhand": "{variant}: {variant}",
+    "shorthand": "{variant}",
+    "computed": "['{variant}']: {variant}",
+}
+
+
+def function_registry(name: str, variants: list[str], spelling: str) -> str:
+    functions = "".join(
+        f"function {variant}(): number {{\n  return {index};\n}}\n"
+        for index, variant in enumerate(variants)
+    )
+    entries = ", ".join(
+        _REGISTRY_ENTRIES[spelling].format(variant=variant)
+        for variant in variants
+    )
+
+    return f"{functions}export const {name} = {{ {entries} }};\n"

@@ -74,6 +74,9 @@ function propertyName(typescript, node) {
   ) {
     return node.text;
   }
+  if (typescript.isComputedPropertyName(node)) {
+    return stringValue(typescript, node.expression);
+  }
 
   return undefined;
 }
@@ -101,6 +104,7 @@ function objectDomain(typescript, initializer) {
   for (const property of object.properties) {
     if (
       !typescript.isPropertyAssignment(property) &&
+      !typescript.isShorthandPropertyAssignment(property) &&
       !typescript.isMethodDeclaration(property)
     ) {
       return undefined;

@@ -10,17 +10,19 @@ require_binary "$php_binary" php
 require_feature_layout Features "$@"
 
 for source_directory in "$@"; do
-    crossings=$(php_files_in "$source_directory" \
+    findings=$(php_files_in "$source_directory" \
         | "$php_binary" "$(dirname "$0")/sibling_crossings.php" \
-        "$source_directory" | reportable_findings)
+        "$source_directory")
+    crossings=$(printf '%s\n' "$findings" | reportable_findings)
 
     fail_on_findings "$crossings" \
         "these features reach into a sibling - move what they share" \
         "into $source_directory/Shared and use that:"
 
-    lonely=$(php_files_in "$source_directory" \
+    findings=$(php_files_in "$source_directory" \
         | "$php_binary" "$(dirname "$0")/lonely_shared.php" \
-        "$source_directory" | reportable_findings)
+        "$source_directory")
+    lonely=$(printf '%s\n' "$findings" | reportable_findings)
 
     fail_on_findings "$lonely" \
         "Shared is for what several features need - move each of" \

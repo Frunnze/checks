@@ -45,10 +45,13 @@ class StatelessDefinition:
 
     def _is_stub(self, node: FunctionNode) -> bool:
         for statement in self._beyond_the_docstring(node):
-            if not isinstance(statement, ast.Pass):
-                return self._is_ellipsis(statement)
+            if not self._is_placeholder(statement):
+                return False
 
         return True
+
+    def _is_placeholder(self, statement: ast.stmt) -> bool:
+        return isinstance(statement, ast.Pass) or self._is_ellipsis(statement)
 
     def _beyond_the_docstring(self, node: FunctionNode) -> list[ast.stmt]:
         body = node.body

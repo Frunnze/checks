@@ -52,7 +52,7 @@ without_whitelisted() {
         return
     fi
 
-    grep -v -F -e "$whitelisted" || true
+    grep -a -v -x -F -e "$whitelisted" || true
 }
 
 within_scope() {
@@ -61,12 +61,24 @@ within_scope() {
         return
     fi
 
-    if [ -z "$changed_files" ]; then
-        cat > /dev/null
-        return
-    fi
+    awk '
+        BEGIN { count = split(ENVIRON["changed_files"], changed, "\n") }
+        {
+            for (position = 1; position <= count; position++) {
+                path = changed[position]
+                after_path = substr($0, length(path) + 1, 1)
 
-    grep -F -e "$changed_files" || true
+                if (path == "" || index($0, path) != 1) {
+                    continue
+                }
+
+                if (after_path == ":" || after_path == " ") {
+                    print
+                    next
+                }
+            }
+        }
+    '
 }
 
 reportable_findings() {
@@ -89,18 +101,20 @@ directories_with_changes() {
 
 changed_files_at() {
     if [ "$1" != pre-push ]; then
-        git diff --cached --name-only --diff-filter=ACMR
+        git -c core.quotePath=false diff --cached --name-only \
+            --diff-filter=ACMR
         return
     fi
 
     if git rev-parse --verify --quiet "@{upstream}" > /dev/null; then
-        git diff --name-only --diff-filter=ACMR "@{upstream}...HEAD"
+        git -c core.quotePath=false diff --name-only --diff-filter=ACMR \
+            "@{upstream}...HEAD"
         return
     fi
 
     echo "pre-commit: the branch has no upstream yet, so every tracked" >&2
     echo "pre-commit: file counts as changed" >&2
-    git ls-files
+    git -c core.quotePath=false ls-files
 }
 
 fail_on_findings() {
@@ -115,7 +129,7 @@ fail_on_findings() {
         echo "pre-commit: $explanation" >&2
     done
 
-    printf '%s\n' "$findings" | grep . >&2
+    printf '%s\n' "$findings" | grep -a . >&2
     exit 1
 }
 
@@ -132,7 +146,14 @@ package_of() {
 }
 
 tests_of() {
-    echo "$(dirname "$1")/tests"
+    package=$(package_of "$1")
+
+    if [ "$package" = . ]; then
+        echo tests
+        return
+    fi
+
+    echo "$package/tests"
 }
 
 sources_and_tests() {
@@ -142,32 +163,32 @@ sources_and_tests() {
     done
 }
 
-files_named() {
-    pattern=$1
-    second_pattern=$2
-    shift 2
+files_ending_in() {
+    extensions=$1
+    shift
 
-    find "$@" \
+    find -H "$@" -mindepth 1 \
         -name __pycache__ -prune -o \
         -name node_modules -prune -o \
         -name vendor -prune -o \
         -name dist -prune -o \
         -name build -prune -o \
-        -type f \( -name "$pattern" -o -name "$second_pattern" \) -print \
+        -type f -print \
+        | grep -a -E "\.($extensions)\$" \
         | sed 's|^\./||' \
-        | sort
+        | sort -u
 }
 
 python_files_in() {
-    files_named '*.py' '*.py' "$@"
+    files_ending_in 'py' "$@"
 }
 
 typescript_files_in() {
-    files_named '*.ts' '*.tsx' "$@"
+    files_ending_in 'ts|tsx|mts|cts' "$@"
 }
 
 php_files_in() {
-    files_named '*.php' '*.php' "$@"
+    files_ending_in 'php' "$@"
 }
 
 directories_written_in() {

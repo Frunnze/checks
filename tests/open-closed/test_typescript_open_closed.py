@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from hypothesis import example, given, settings
+from hypothesis import strategies as st
+from open_closed_typescript_shapes import equality_chain, typescript_findings
 from typescript_finder_support import CHECKS, report_from
 
 _FINDER = CHECKS / "experimental" / "open-closed" / "typescript" / "variant_dispatches.js"
@@ -158,4 +161,18 @@ def test_flags_five_strings_compared_to_one_subject(
             f"{module}:1: FaceView compares props.face.kind to 5 strings: "
             "basic, cloze, feynman, image, list"
         )
+    ]
+
+
+@given(name=st.text(alphabet="ab \t", min_size=1, max_size=8))
+@example(name="a b")
+@settings(max_examples=15, deadline=None)
+def test_file_name_whitespace_property_keeps_the_file_analysed(
+    name: str,
+) -> None:
+    module = f"src/{name}.ts"
+    source = equality_chain(["deck", "file", "note"])
+
+    assert typescript_findings({module: source}) == [
+        f"{module}:1: route compares kind to 3 strings: deck, file, note"
     ]
