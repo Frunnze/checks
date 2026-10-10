@@ -217,7 +217,7 @@ installed_python_packages() {
 }
 
 unreachable_registry="ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED\
-|ECONNRESET|ERR_SOCKET_TIMEOUT|network|Could not resolve host|curl error\
+|ECONNRESET|ERR_SOCKET_TIMEOUT|Could not resolve host|curl error\
 |requests\.exceptions\.(ConnectionError|ConnectTimeout|ReadTimeout|Timeout\
 |ProxyError|SSLError)"
 

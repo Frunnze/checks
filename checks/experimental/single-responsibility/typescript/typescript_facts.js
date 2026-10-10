@@ -26,11 +26,15 @@ function scopeName(node, source) {
 }
 
 function bindingName(node) {
-  if (ts.isFunctionDeclaration(node)) return node.name?.text;
+  if (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) return node.name?.text;
   if (isCallable(node) && ts.isVariableDeclaration(node.parent) && ts.isIdentifier(node.parent.name)) {
     return node.parent.name.text;
   }
   return undefined;
+}
+
+function definitionBody(name, line, owner) {
+  return { name, line, owner, statements: 0, complexity: 1, nesting: 0, parameters: 0, client_only: true };
 }
 
 function collectScope(source, node, owner, inherited, globals, facts, owners, visible = new Map()) {
@@ -68,6 +72,8 @@ function collectScope(source, node, owner, inherited, globals, facts, owners, vi
     }
     if (isClass(child)) {
       owners.push({ name, line, kind: "class" });
+      facts.push(runtimeMetrics(source, { body: child, parameters: [] },
+        definitionBody(`${name}.<class-body>`, line, name), new Map(bindings), globals, new Set()));
     } else if (child.body) {
       for (const nested of directScopes(child)) {
         const binding = bindingName(nested);
@@ -113,7 +119,6 @@ function factsFor(filePath) {
       "String literal expected.");
   }
   const project = projectModules(source);
-  const exported = moduleExports(source, scopeName, project.modules);
   const bindings = importBindings(source, project.modules);
   const globals = new Set();
   for (const statement of source.statements) {
@@ -131,13 +136,12 @@ function factsFor(filePath) {
   const facts = [], owners = [{ name: "<module>", line: 1, kind: "module" }];
   const moduleBindings = new Map(bindings);
   facts.push(runtimeMetrics(source, { body: source, parameters: [] },
-    { name: "<module-body>", line: 1, owner: "", statements: 0, complexity: 1,
-      nesting: 0, parameters: 0, client_only: true },
-    moduleBindings, globals, new Set()));
+    definitionBody("<module-body>", 1, "<module>"), moduleBindings, globals, new Set()));
   // Unresolved module values remain globals, not function-local shadows.
   for (const [name, value] of moduleBindings) {
     if (value.startsWith("local:")) moduleBindings.delete(name);
   }
+  const exported = moduleExports(source, scopeName, moduleBindings);
   collectScope(source, source, "<module>", moduleBindings, globals, facts, owners);
   return { path: filePath, callables: facts, owners, ...project, ...exported };
 }

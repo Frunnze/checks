@@ -66,7 +66,7 @@ function unwrappedInitializer(typescript, node) {
   return current;
 }
 
-function propertyName(typescript, node) {
+function propertyName(typescript, checker, node) {
   if (
     typescript.isIdentifier(node) ||
     typescript.isStringLiteral(node) ||
@@ -75,7 +75,9 @@ function propertyName(typescript, node) {
     return node.text;
   }
   if (typescript.isComputedPropertyName(node)) {
-    return stringValue(typescript, node.expression);
+    const keyType = checker.getTypeAtLocation(node.expression);
+
+    return keyType.isStringLiteral() ? keyType.value : undefined;
   }
 
   return undefined;
@@ -94,7 +96,7 @@ function stringValue(typescript, node) {
   return undefined;
 }
 
-function objectDomain(typescript, initializer) {
+function objectDomain(typescript, checker, initializer) {
   const object = unwrappedInitializer(typescript, initializer);
 
   if (!typescript.isObjectLiteralExpression(object)) return undefined;
@@ -110,7 +112,7 @@ function objectDomain(typescript, initializer) {
       return undefined;
     }
 
-    const name = propertyName(typescript, property.name);
+    const name = propertyName(typescript, checker, property.name);
 
     if (name === undefined) return undefined;
 
@@ -120,7 +122,7 @@ function objectDomain(typescript, initializer) {
   return domain.size >= 3 ? domain : undefined;
 }
 
-function descriptorArray(typescript, initializer) {
+function descriptorArray(typescript, checker, initializer) {
   const array = unwrappedInitializer(typescript, initializer);
 
   if (!typescript.isArrayLiteralExpression(array) || array.elements.length < 3) {
@@ -149,7 +151,7 @@ function descriptorArray(typescript, initializer) {
   const first = objects[0];
   const candidateNames = first.properties
     .filter(typescript.isPropertyAssignment)
-    .map((property) => propertyName(typescript, property.name))
+    .map((property) => propertyName(typescript, checker, property.name))
     .filter((name) => name !== undefined);
   const preferred = [
     "kind",
@@ -172,7 +174,7 @@ function descriptorArray(typescript, initializer) {
       const property = object.properties.find(
         (entry) =>
           typescript.isPropertyAssignment(entry) &&
-          propertyName(typescript, entry.name) === candidate,
+          propertyName(typescript, checker, entry.name) === candidate,
       );
 
       return property === undefined
@@ -242,4 +244,5 @@ module.exports = {
   descriptorArray,
   aliasesByDomain,
   objectContainsBehavior,
+  stringValue,
 };

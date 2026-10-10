@@ -43,9 +43,8 @@ function registriesIn(
     });
   }
 
-  function visit(sourceFile, node) {
+  function inspect(sourceFile, node) {
     if (
-      typescript.isVariableDeclaration(node) &&
       typescript.isIdentifier(node.name) &&
       node.initializer !== undefined
     ) {
@@ -69,8 +68,12 @@ function registriesIn(
           );
         }
       } else {
-        const objectKeys = objectDomain(typescript, node.initializer);
-        const descriptor = descriptorArray(typescript, node.initializer);
+        const objectKeys = objectDomain(typescript, checker, node.initializer);
+        const descriptor = descriptorArray(
+          typescript,
+          checker,
+          node.initializer,
+        );
 
         if (objectKeys !== undefined) {
           add(
@@ -95,11 +98,17 @@ function registriesIn(
         }
       }
     }
-
-    typescript.forEachChild(node, (child) => visit(sourceFile, child));
   }
 
-  for (const sourceFile of sourceFiles) visit(sourceFile, sourceFile);
+  for (const sourceFile of sourceFiles) {
+    for (const statement of sourceFile.statements) {
+      if (!typescript.isVariableStatement(statement)) continue;
+
+      for (const declaration of statement.declarationList.declarations) {
+        inspect(sourceFile, declaration);
+      }
+    }
+  }
 
   return found;
 }
@@ -142,7 +151,9 @@ function groupedByAxis(registries) {
   const groups = [];
 
   for (const registry of widestFirst) {
-    const covering = groups.find((group) => sameAxis(registry, group[0]));
+    const covering = groups.find((group) =>
+      group.every((member) => sameAxis(registry, member)),
+    );
 
     if (covering === undefined) {
       groups.push([registry]);

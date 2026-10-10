@@ -1,5 +1,7 @@
 import ast
 
+_ABSTRACT_BASES = {"ABC", "abc.ABC", "Protocol", "typing.Protocol"}
+
 
 def abstract_classes(tree: ast.Module) -> set[str]:
     found: set[str] = set()
@@ -8,9 +10,8 @@ def abstract_classes(tree: ast.Module) -> set[str]:
         if not isinstance(node, ast.ClassDef):
             continue
 
-        inherits_abc = any(
-            _expression_name(base) in {"ABC", "abc.ABC"}
-            for base in node.bases
+        inherits_abstract_base = any(
+            _expression_name(base) in _ABSTRACT_BASES for base in node.bases
         )
         has_abstract_method = any(
             isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef))
@@ -24,7 +25,7 @@ def abstract_classes(tree: ast.Module) -> set[str]:
             for member in node.body
         )
 
-        if inherits_abc or has_abstract_method:
+        if inherits_abstract_base or has_abstract_method:
             found.add(node.name)
 
     return found

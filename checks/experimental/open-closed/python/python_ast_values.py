@@ -1,5 +1,7 @@
 import ast
 
+ENUM_BASES = {"Enum", "Flag", "IntEnum", "IntFlag", "StrEnum"}
+
 
 def literal_annotation(node: ast.AST) -> set[str] | None:
     if not isinstance(node, ast.Subscript):
@@ -39,8 +41,8 @@ def string_value(
 ) -> str | None:
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
-    if isinstance(node, ast.Name):
-        return constants.get(node.id)
+    if isinstance(node, (ast.Name, ast.Attribute)):
+        return constants.get(expression_name(node))
 
     return None
 
@@ -50,6 +52,14 @@ def inherits_from(owner: ast.ClassDef, names: set[str]) -> bool:
         expression_name(base).rsplit(".", 1)[-1] in names
         for base in owner.bases
     )
+
+
+def enum_classes(tree: ast.Module) -> list[ast.ClassDef]:
+    return [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and inherits_from(node, ENUM_BASES)
+    ]
 
 
 def expression_name(node: ast.AST) -> str:

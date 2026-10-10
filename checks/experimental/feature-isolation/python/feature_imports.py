@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 from typing import NamedTuple
 
+from source_modules import PackageChain, RelativeSegments, SourceModule
+
 FEATURES_PACKAGE = "features"
 FEATURES_PREFIX = f"{FEATURES_PACKAGE}."
-
-PackageChain = tuple[str, ...]
 
 
 class CrossFeatureImport(NamedTuple):
@@ -34,31 +34,19 @@ class FeatureRoot:
 
 
 class FeatureSegments:
+    def __init__(self, source_directory: Path) -> None:
+        self._source_module = SourceModule(source_directory)
+
     def of(self, module: str) -> list[str] | None:
-        if module == FEATURES_PACKAGE:
+        inside = self._source_module.of(module)
+
+        if inside == FEATURES_PACKAGE:
             return []
 
-        if module.startswith(FEATURES_PREFIX):
-            return module[len(FEATURES_PREFIX) :].split(".")
+        if inside.startswith(FEATURES_PREFIX):
+            return inside[len(FEATURES_PREFIX) :].split(".")
 
         return None
-
-
-class RelativeSegments:
-    def of(
-        self, node: ast.ImportFrom, package: PackageChain
-    ) -> list[str] | None:
-        climbed = node.level - 1
-
-        if climbed > len(package):
-            return None
-
-        segments = list(package[: len(package) - climbed])
-
-        if node.module is not None:
-            segments.extend(node.module.split("."))
-
-        return segments
 
 
 class ImportedChain:
@@ -112,9 +100,11 @@ class SiblingCrossing:
 
 
 class CrossedFeature:
-    def __init__(self, location: FeatureLocation) -> None:
+    def __init__(
+        self, location: FeatureLocation, source_directory: Path
+    ) -> None:
         self.location: FeatureLocation = location
-        self.segments: FeatureSegments = FeatureSegments()
+        self.segments: FeatureSegments = FeatureSegments(source_directory)
         self.relative: RelativeSegments = RelativeSegments()
         self.chain_of: ImportedChain = ImportedChain()
         self.crossing: SiblingCrossing = SiblingCrossing()
@@ -141,12 +131,19 @@ class CrossedFeature:
 
     def _by_relative_import(self, node: ast.ImportFrom) -> list[str]:
         spelled = "." * node.level + (node.module or "")
-        base = self.relative.of(node, self.location.chain)
+        package = (FEATURES_PACKAGE, *self.location.chain)
+        base = self.relative.of(node, package)
 
         if base is None:
             return [spelled]
 
-        if self._crossings(self._named_under(base, node)):
+        reached: list[list[str]] = []
+
+        for named in self._named_under(base, node):
+            if named[0] == FEATURES_PACKAGE:
+                reached.append(named[1:])
+
+        if self._crossings(reached):
             return [spelled]
 
         return []
@@ -199,8 +196,9 @@ class CrossFeatureImports:
             return []
 
         tree = ast.parse(path.read_bytes(), filename=str(path))
+        crossed = CrossedFeature(location, self._source_directory)
 
-        return self._crossings_in(tree, path, CrossedFeature(location))
+        return self._crossings_in(tree, path, crossed)
 
     def _crossings_in(
         self, tree: ast.Module, path: Path, crossed: CrossedFeature

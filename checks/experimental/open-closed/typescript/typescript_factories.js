@@ -1,6 +1,7 @@
 const path = require("path");
 
 const ECMASCRIPT_LIBRARY = /^lib\.es/u;
+const PROMISE = "Promise";
 
 function declarationNames(typescript, sourceFiles) {
   const abstractions = new Set();
@@ -29,9 +30,15 @@ function declarationNames(typescript, sourceFiles) {
 
 function annotationName(typescript, node) {
   if (node === undefined) return undefined;
-  if (typescript.isTypeReferenceNode(node)) return node.typeName.getText();
+  if (!typescript.isTypeReferenceNode(node)) return undefined;
 
-  return undefined;
+  const name = node.typeName.getText();
+
+  if (name === PROMISE && node.typeArguments?.length === 1) {
+    return annotationName(typescript, node.typeArguments[0]);
+  }
+
+  return name;
 }
 
 function isInstanceAssignment(typescript, node) {

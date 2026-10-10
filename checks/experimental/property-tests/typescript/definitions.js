@@ -5,6 +5,23 @@ function isFunctionValue(typescript, node) {
   );
 }
 
+function withoutTypeWrappers(typescript, node) {
+  let expression = node;
+
+  while (
+    expression !== undefined &&
+    (typescript.isParenthesizedExpression(expression) ||
+      typescript.isAsExpression(expression) ||
+      typescript.isSatisfiesExpression(expression) ||
+      typescript.isTypeAssertionExpression(expression) ||
+      typescript.isNonNullExpression(expression))
+  ) {
+    expression = expression.expression;
+  }
+
+  return expression;
+}
+
 function objectMethodsIn(typescript, literal) {
   const found = [];
 
@@ -13,11 +30,12 @@ function objectMethodsIn(typescript, literal) {
       found.push({ name: member.name.getText(), node: member });
     }
 
-    if (
-      typescript.isPropertyAssignment(member) &&
-      isFunctionValue(typescript, member.initializer)
-    ) {
-      found.push({ name: member.name.getText(), node: member.initializer });
+    if (!typescript.isPropertyAssignment(member)) continue;
+
+    const value = withoutTypeWrappers(typescript, member.initializer);
+
+    if (isFunctionValue(typescript, value)) {
+      found.push({ name: member.name.getText(), node: value });
     }
   }
 
@@ -28,7 +46,10 @@ function boundFunctionsIn(typescript, statement) {
   const found = [];
 
   for (const declaration of statement.declarationList.declarations) {
-    const initialiser = declaration.initializer;
+    const initialiser = withoutTypeWrappers(
+      typescript,
+      declaration.initializer,
+    );
 
     if (initialiser === undefined) continue;
     if (!typescript.isIdentifier(declaration.name)) continue;
@@ -56,11 +77,12 @@ function methodsIn(typescript, declaration) {
       found.push({ name: member.name.getText(), node: member });
     }
 
-    if (
-      typescript.isPropertyDeclaration(member) &&
-      isFunctionValue(typescript, member.initializer)
-    ) {
-      found.push({ name: member.name.getText(), node: member.initializer });
+    if (!typescript.isPropertyDeclaration(member)) continue;
+
+    const value = withoutTypeWrappers(typescript, member.initializer);
+
+    if (isFunctionValue(typescript, value)) {
+      found.push({ name: member.name.getText(), node: value });
     }
   }
 

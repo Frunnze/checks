@@ -31,6 +31,19 @@ def test_says_nothing_about_a_handler_on_any_verb(tmp_path: Path) -> None:
     assert report_for(tmp_path, source, "") == []
 
 
+def test_says_nothing_about_a_flask_route_handler(tmp_path: Path) -> None:
+    source = (
+        "@app.route('/due', methods=['GET'])\n"
+        "def show_due(db):\n"
+        "    return db.query()\n"
+        "@router.api_route('/x', methods=['GET', 'POST'])\n"
+        "def handle(db):\n"
+        "    return db\n"
+    )
+
+    assert report_for(tmp_path, source, "") == []
+
+
 def test_says_nothing_about_a_body_that_only_says_ellipsis(
     tmp_path: Path,
 ) -> None:

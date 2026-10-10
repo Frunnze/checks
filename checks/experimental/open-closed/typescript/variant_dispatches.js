@@ -1,6 +1,8 @@
 const fs = require("fs");
 const path = require("path");
 const { registryReports } = require("./typescript_registries");
+const { stringValue } = require("./registry_values");
+const { programFor } = require("./typescript_program");
 const { factoryReports } = require("./typescript_factories");
 const { enumReports } = require("./typescript_enums");
 const {
@@ -28,20 +30,17 @@ function isFunctionScope(node) {
   );
 }
 
-function literalFrom(node) {
-  if (
-    typescript.isStringLiteral(node) ||
-    typescript.isNoSubstitutionTemplateLiteral(node)
-  ) {
-    return node.text;
-  }
+function declaredSymbol(identifier, checker) {
+  const symbol = checker.getSymbolAtLocation(identifier);
 
-  return undefined;
+  if (symbol === undefined) return undefined;
+  if ((symbol.flags & typescript.SymbolFlags.Alias) === 0) return symbol;
+
+  return checker.getAliasedSymbol(symbol);
 }
 
 function moduleConstantFrom(identifier, checker) {
-  const declaration =
-    checker.getSymbolAtLocation(identifier)?.valueDeclaration;
+  const declaration = declaredSymbol(identifier, checker)?.valueDeclaration;
 
   if (declaration === undefined) return undefined;
   if (!typescript.isVariableDeclaration(declaration)) return undefined;
@@ -57,13 +56,13 @@ function moduleConstantFrom(identifier, checker) {
 
   if (!isConstant || !isModuleLevel) return undefined;
 
-  return literalFrom(declaration.initializer);
+  return stringValue(typescript, declaration.initializer);
 }
 
 function stringFrom(node, checker) {
   if (typescript.isIdentifier(node)) return moduleConstantFrom(node, checker);
 
-  return literalFrom(node);
+  return stringValue(typescript, node);
 }
 
 function unwrapped(node) {
@@ -252,21 +251,10 @@ function localReports(sites) {
   return found;
 }
 
-function programFor(paths) {
-  return typescript.createProgram(paths, {
-    target: typescript.ScriptTarget.Latest,
-    module: typescript.ModuleKind.ESNext,
-    moduleResolution: typescript.ModuleResolutionKind.Bundler,
-    jsx: typescript.JsxEmit.Preserve,
-    skipLibCheck: true,
-    noEmit: true,
-  });
-}
-
 const paths = fs.readFileSync(0, "utf8").split("\n").filter(Boolean);
 displayPaths = new Map(paths.map((filePath) => [path.resolve(filePath), filePath]));
 const rootPaths = [...displayPaths.keys()];
-const program = programFor(rootPaths);
+const program = programFor(typescript, rootPaths);
 const pathSet = new Set(rootPaths);
 const sourceFiles = program
   .getSourceFiles()

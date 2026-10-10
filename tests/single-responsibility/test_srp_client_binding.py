@@ -95,6 +95,40 @@ FACTORY_CLIENT_SOURCES = [
         "persistence",
     ),
 ]
+TYPESCRIPT_FACTORY_CLIENT_SOURCES = [
+    (
+        'import nodemailer from "nodemailer";\n'
+        "export async function remember(host: string, key: string) {\n"
+        "  const transporter = nodemailer.createTransport({ host });\n"
+        "  await transporter.sendMail({ text: key });\n"
+        "}\n",
+        "email",
+    ),
+    (
+        'import axios from "axios";\n'
+        "export async function remember(host: string, key: string) {\n"
+        "  const client = axios.create({ baseURL: host });\n"
+        "  await client.post(key);\n"
+        "}\n",
+        "network",
+    ),
+    (
+        'import { createClient } from "redis";\n'
+        "export async function remember(host: string, key: string) {\n"
+        "  const cache = createClient({ url: host });\n"
+        '  await cache.set(key, "value");\n'
+        "}\n",
+        "persistence",
+    ),
+    (
+        'import { Pool } from "pg";\n'
+        "export async function remember(host: string, key: string) {\n"
+        "  const connection = await new Pool({ host }).connect();\n"
+        '  await connection.query("insert", [key]);\n'
+        "}\n",
+        "persistence",
+    ),
+]
 AI_WRITER_SOURCES = [
     "from openai import OpenAI\n"
     "class Writer:\n"
@@ -133,6 +167,15 @@ NON_ENTITY_SOURCES = [
 @pytest.mark.parametrize("source, entity", FACTORY_CLIENT_SOURCES)
 def test_factory_built_clients_are_bound(tmp_path, source, entity):
     unit = unit_named(run_report(tmp_path, source), "<module>.remember")
+
+    assert list(unit["effect_domains"]) == [entity]
+
+
+@pytest.mark.parametrize("source, entity", TYPESCRIPT_FACTORY_CLIENT_SOURCES)
+def test_typescript_factory_built_clients_are_bound(tmp_path, source, entity):
+    report = run_report(tmp_path, source, ".ts")
+
+    unit = unit_named(report, "<module>.remember")
 
     assert list(unit["effect_domains"]) == [entity]
 

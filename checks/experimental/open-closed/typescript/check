@@ -9,11 +9,16 @@ require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 
 typescript_files=$(typescript_files_in "$@")
+source_directories=$(setting "checks.$check_name.source_directories")
+protocol_files=$(
+    python_files_in $source_directories
+    typescript_files_in $source_directories
+)
 dispatches=$(
     printf '%s\n' "$typescript_files" | "$node_binary" \
         "$(dirname "$0")/variant_dispatches.js" "$typescript_module"
-    printf '%s\n' "$typescript_files" | "$toolkit_python" \
-        "$(dirname "$0")/../python/protocol_strings.py"
+    printf '%s\n' "$protocol_files" | "$toolkit_python" \
+        "$(dirname "$0")/../python/protocol_strings.py" typescript
 )
 
 fail_on_findings "$(printf '%s\n' "$dispatches" | reportable_findings)" \

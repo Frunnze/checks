@@ -1,5 +1,5 @@
 const path = require("node:path");
-const { ts, isCallable, isClass, qualified, importBindings, namesIn, annotationType } = require("./typescript_bindings");
+const { ts, isCallable, isClass, qualified, namesIn, annotationType } = require("./typescript_bindings");
 
 const optionsCache = new Map();
 
@@ -36,17 +36,14 @@ function projectModules(source) {
   return { modules, config };
 }
 
-function moduleExports(source, scopeName, modules) {
+function moduleExports(source, scopeName, bindings) {
   const exports = {}, stars = [];
   let exportEquals;
-  const bindings = importBindings(source, modules);
   const declarations = new Map();
   for (const statement of source.statements) {
-    if ((isCallable(statement) || isClass(statement)) && statement.name) bindings.delete(statement.name.text);
     if (ts.isVariableStatement(statement)) {
       for (const declaration of statement.declarationList.declarations) {
         for (const name of namesIn(declaration.name)) {
-          bindings.delete(name);
           if (declaration.initializer && (isCallable(declaration.initializer) || isClass(declaration.initializer))) {
             declarations.set(name, `<module>.${scopeName(declaration.initializer, source)}`);
           }

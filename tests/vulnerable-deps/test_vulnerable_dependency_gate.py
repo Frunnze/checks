@@ -82,6 +82,19 @@ def test_skips_the_scan_when_the_advisory_database_is_unreachable(
     assert "unreachable" in finished.stderr
 
 
+def test_fails_when_pip_audit_crashes_in_a_checkout_named_network(
+    tmp_path: Path,
+) -> None:
+    traceback = (
+        'File "/home/me/social-network/.checks/.venv/lib/pip_audit.py"\n'
+        + CRASHED
+    )
+
+    finished = _check_with(tmp_path, traceback, 1)
+
+    assert finished.returncode == 1
+
+
 def test_fails_when_pip_audit_crashes_for_another_reason(
     tmp_path: Path,
 ) -> None:

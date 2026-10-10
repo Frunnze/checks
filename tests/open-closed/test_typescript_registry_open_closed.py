@@ -77,6 +77,69 @@ def test_flags_descriptor_array_split_from_inferred_behavior_map(
     ]
 
 
+def test_ignores_request_options_built_inside_functions(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/api.ts": (
+            "export async function save(body: string): Promise<Response> {\n"
+            '  const options = { method: "POST", headers: {}, body };\n'
+            '  return fetch("/save", options);\n'
+            "}\n"
+            "export async function update(body: string): Promise<Response> {\n"
+            '  const options = { method: "PUT", headers: {}, body };\n'
+            '  return fetch("/update", options);\n'
+            "}\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == []
+
+
+def test_does_not_group_registries_of_two_named_axes(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/notices.ts": (
+            'export const ICONS = { info: "i", warning: "!", error: "x" };\n'
+            'type Notice = "info" | "warning";\n'
+            "export const NOTICE_COLORS: Record<Notice, string> = {\n"
+            '  info: "blue", warning: "orange"\n'
+            "};\n"
+            'type Problem = "warning" | "error";\n'
+            "export const PROBLEM_COLORS: Record<Problem, string> = {\n"
+            '  warning: "orange", error: "red"\n'
+            "};\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == []
+
+
+def test_flags_registries_keyed_by_enum_members(tmp_path: Path) -> None:
+    files = {
+        "src/kinds.ts": (
+            "export enum Kind { Deck = 'deck', File = 'file', Note = 'note' }\n"
+        ),
+        "src/registries.ts": (
+            'import { Kind } from "./kinds";\n'
+            "export const HANDLERS = {\n"
+            "  [Kind.Deck]: () => 0, [Kind.File]: () => 1, [Kind.Note]: () => 2\n"
+            "};\n"
+            "export const LABELS = {\n"
+            '  [Kind.Deck]: "Deck", [Kind.File]: "File", [Kind.Note]: "Note"\n'
+            "};\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == [
+        (
+            "src/registries.ts:2: variant behavior is split across 2 "
+            "registries in 1 file: HANDLERS, LABELS"
+        )
+    ]
+
+
 def test_does_not_treat_data_catalog_as_handler_registry(
     tmp_path: Path,
 ) -> None:

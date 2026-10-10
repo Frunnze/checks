@@ -39,7 +39,7 @@ def source_root(
         if is_marked_source_root(parent, markers):
             return parent
     package = path.parent
-    while package != scan_root and (package / PACKAGE_MARKER).is_file():
+    while (package / PACKAGE_MARKER).is_file():
         package = package.parent
     if package != path.parent:
         return package

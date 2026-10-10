@@ -1,5 +1,6 @@
 import ast
 
+from match_patterns import subject_patterns
 from ocp_findings import (
     CONTAINER_NODES,
     EQUALITY_NODES,
@@ -41,7 +42,7 @@ class StringComparisons(ScopedVisitor):
 
     def visit_Match(self, node: ast.Match) -> None:
         for match_case in node.cases:
-            for pattern in ast.walk(match_case.pattern):
+            for pattern in subject_patterns(match_case.pattern):
                 if not isinstance(pattern, ast.MatchValue):
                     continue
 

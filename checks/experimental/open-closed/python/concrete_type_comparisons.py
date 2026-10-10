@@ -1,5 +1,6 @@
 import ast
 
+from match_patterns import subject_patterns
 from ocp_findings import (
     CONTAINER_NODES,
     IDENTITY_NODES,
@@ -76,7 +77,7 @@ class ConcreteTypeComparisons(ScopedVisitor):
 
     def visit_Match(self, node: ast.Match) -> None:
         for match_case in node.cases:
-            for pattern in ast.walk(match_case.pattern):
+            for pattern in subject_patterns(match_case.pattern):
                 if isinstance(pattern, ast.MatchClass):
                     concrete_type = self._type_name(pattern.cls)
 

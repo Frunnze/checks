@@ -13,7 +13,7 @@ for source_directory in "$@"; do
     if ! "$node_tools/jscpd" "$source_directory" \
         --format typescript,tsx \
         --threshold 0 \
-        --ignore-pattern 'import[^;]*;' \
+        --ignore-pattern "import\\s[^'\"]*['\"][^'\"]*['\"];?" \
         --ignore "${ignored_paths:-**/node_modules/**}" \
         --reporters console \
         --silent; then

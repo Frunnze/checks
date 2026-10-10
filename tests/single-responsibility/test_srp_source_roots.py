@@ -54,6 +54,15 @@ def test_package_named_src_resolves_like_any_package(tmp_path, import_form):
     assert sync_coefficient(source_package) == sync_coefficient(control)
 
 
+@pytest.mark.parametrize("import_form", IMPORT_FORMS)
+def test_scanned_package_resolves_imports_like_its_parent(tmp_path, import_form):
+    write_syncing_package(tmp_path, "app", import_form)
+    (tmp_path / "app" / "requests.py").write_text("def get(url):\n    return url\n")
+
+    assert sync_coefficient(tmp_path) == 0.5
+    assert sync_coefficient(tmp_path / "app") == sync_coefficient(tmp_path)
+
+
 def test_ancestor_named_src_above_the_scan_does_not_change_verdict(tmp_path):
     outside = tmp_path / "code" / "proj"
     inside_source = tmp_path / "src" / "proj"

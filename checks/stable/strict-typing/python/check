@@ -8,6 +8,16 @@ echo "pre-commit: never silence the checker - fix the type instead"
 
 require_binary "$python_tools/basedpyright" basedpyright
 
+silencers='#[[:space:]]*(type:[[:space:]]*ignore'
+silencers="$silencers|pyright:[[:space:]]*(ignore|basic|standard|report))"
+silenced=$(python_files_in $(sources_and_tests "$@") \
+    | while IFS= read -r source_file; do
+        grep -anHE "$silencers" "$source_file" || true
+    done)
+
+fail_on_findings "$silenced" \
+    "the type checker is silenced here - fix the type:"
+
 python_binary=$(project_python)
 require_binary "$python_binary" "the project python ($python_binary)"
 

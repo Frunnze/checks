@@ -127,6 +127,27 @@ def test_reports_every_constructed_collaborator_sorted() -> None:
     ]
 
 
+def test_flags_a_collaborator_whose_public_behavior_is_inherited() -> None:
+    modules = {
+        "base.py": (
+            "class BaseWorkflow:\n"
+            "    def run(self):\n        return self._step()\n"
+        ),
+        "chat.py": (
+            "class ChatWorkflow(BaseWorkflow):\n"
+            "    def _step(self):\n        return 1\n"
+        ),
+        "service.py": service_owning("UnitService", ["ChatWorkflow"]),
+    }
+
+    assert findings_for(modules) == [
+        (
+            "service.py:2: UnitService constructs its own collaborators "
+            "instead of receiving them: ChatWorkflow"
+        )
+    ]
+
+
 def test_allows_a_collaborator_built_into_a_local_variable() -> None:
     service = (
         "class UnitService:\n"
