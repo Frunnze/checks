@@ -143,6 +143,33 @@ def test_flags_class_patterns_as_concrete_type_dispatch(
     ]
 
 
+def test_does_not_give_nested_pattern_values_to_the_match_subject(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "def click(event):\n"
+        "    match event:\n"
+        "        case {'type': 'click', 'button': 'left'}:\n"
+        "            return 1\n"
+        "        case {'type': 'key', 'button': 'right'}:\n"
+        "            return 2\n"
+        "def press(event):\n"
+        "    match event:\n"
+        "        case Key(name=Name.ENTER) | Key(name=Name.SPACE):\n"
+        "            return 1\n"
+        "        case Key(name=Name.TAB):\n"
+        "            return 2\n"
+        "def draw(event):\n"
+        "    match event:\n"
+        "        case Move(target=Circle()) | Move(target=Square()):\n"
+        "            return 1\n"
+        "        case [Triangle(), *_]:\n"
+        "            return 2\n"
+    )
+
+    assert _report_for(tmp_path, source) == []
+
+
 def test_ignores_primitive_runtime_validation(tmp_path: Path) -> None:
     source = (
         "def decode(value):\n"

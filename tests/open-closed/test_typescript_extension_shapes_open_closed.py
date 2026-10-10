@@ -42,6 +42,28 @@ def test_flags_concrete_dependency_owned_by_abstract_factory(
     ]
 
 
+def test_flags_concrete_dependency_owned_by_async_factory(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/factory.ts": (
+            "interface Transport { send(): void }\n"
+            "class SocketClient {}\n"
+            "class TransportFactory {\n"
+            "  private readonly client = new SocketClient();\n"
+            "  async create(): Promise<Transport> { throw new Error(); }\n"
+            "}\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == [
+        (
+            "src/factory.ts:3: TransportFactory leaks concrete dependencies "
+            "while creating Transport: SocketClient"
+        )
+    ]
+
+
 def test_allows_dependency_injected_into_abstract_factory(
     tmp_path: Path,
 ) -> None:

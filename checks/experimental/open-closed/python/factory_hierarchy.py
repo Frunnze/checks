@@ -18,7 +18,7 @@ def class_bases(modules: list[Module]) -> dict[str, set[str]]:
             direct = {
                 name
                 for base in node.bases
-                if (name := expression_name(base)) is not None
+                if (name := class_name(base)) is not None
             }
             found.setdefault(node.name, set()).update(direct)
 
@@ -47,7 +47,7 @@ def annotation_name(annotation: ast.expr | None) -> str | None:
     if not isinstance(annotation, (ast.Name, ast.Attribute)):
         return None
 
-    return expression_name(annotation)
+    return class_name(annotation)
 
 
 def returned_constructors(scope: ast.AST) -> set[str]:
@@ -59,10 +59,10 @@ def returned_constructors(scope: ast.AST) -> set[str]:
         ):
             continue
 
-        name = expression_name(node.value.func)
+        name = class_name(node.value.func)
 
-        if name is not None and name.rsplit(".", 1)[-1][:1].isupper():
-            found.add(name.rsplit(".", 1)[-1])
+        if name is not None and name[:1].isupper():
+            found.add(name)
 
     return found
 
@@ -88,6 +88,12 @@ def inherits(
         pending.extend(direct)
 
     return False
+
+
+def class_name(node: ast.expr) -> str | None:
+    name = expression_name(node)
+
+    return None if name is None else name.rsplit(".", 1)[-1]
 
 
 def expression_name(node: ast.expr) -> str | None:

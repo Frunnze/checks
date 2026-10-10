@@ -1,4 +1,5 @@
 import keyword
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -8,6 +9,7 @@ from hypothesis import strategies as st
 from typescript_finder_support import CHECKS
 
 FINDER_DIRECTORY = CHECKS / "experimental" / "open-closed" / "python"
+PROTOCOL_FINDER = FINDER_DIRECTORY / "protocol_strings.py"
 
 if str(FINDER_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(FINDER_DIRECTORY))
@@ -47,6 +49,27 @@ def reports_for(paths: list[str]) -> list[str]:
         f"{message_for(finding)}"
         for finding in VariantDispatches().find_in(paths)
     ]
+
+
+def protocol_reports_from(root: Path, files: dict[str, str]) -> list[str]:
+    paths: list[str] = []
+
+    for relative, source in files.items():
+        module = root / relative
+        module.parent.mkdir(parents=True, exist_ok=True)
+        _ = module.write_text(source, encoding="utf-8")
+        paths.append(relative)
+
+    finished = subprocess.run(
+        [sys.executable, str(PROTOCOL_FINDER)],
+        input="\n".join(paths),
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=root,
+    )
+
+    return finished.stdout.splitlines()
 
 
 IDENTIFIERS = st.text(

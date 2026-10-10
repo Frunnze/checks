@@ -13,6 +13,7 @@ from python_structure_types import (
 
 _SHARED_MAJORITY = 2
 _UNNAMED_AXIS = "variant"
+_EXPORT_LIST = "__all__"
 
 
 def registries_in(
@@ -28,7 +29,7 @@ def registries_in(
             name = assigned_name(node)
             value = node.value
 
-            if name is None or value is None:
+            if name is None or value is None or name == _EXPORT_LIST:
                 continue
 
             explicit_axis = (

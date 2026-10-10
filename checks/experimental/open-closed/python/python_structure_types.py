@@ -2,8 +2,13 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-from module_constants import string_constants
+from module_constants import (
+    imported_constants,
+    module_location,
+    string_constants,
+)
 from python_ast_values import (
+    ENUM_BASES,
     assigned_name,
     expression_name,
     inherits_from,
@@ -41,10 +46,21 @@ def parsed_module(path: str) -> ast.Module:
 
 
 def modules_from(paths: list[str]) -> list[Module]:
-    return [
+    parsed = [
         Module(path, tree := parsed_module(path), string_constants(tree))
         for path in paths
     ]
+    exported = {
+        module_location(module.path): module.constants for module in parsed
+    }
+    found: list[Module] = []
+
+    for module in parsed:
+        imported = imported_constants(module.path, module.tree, exported)
+        constants = {**imported, **module.constants}
+        found.append(Module(module.path, module.tree, constants))
+
+    return found
 
 
 def _add_axis(
@@ -73,7 +89,7 @@ def axes_in(modules: list[Module]) -> dict[str, list[Axis]]:
                     if domain is not None:
                         _add_axis(found, name, domain)
             elif isinstance(node, ast.ClassDef) and inherits_from(
-                node, {"Enum", "StrEnum"}
+                node, ENUM_BASES
             ):
                 values = {
                     value

@@ -1,17 +1,13 @@
 import re
-import subprocess
-import sys
 import tempfile
 import warnings
 from pathlib import Path
 
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
-from open_closed_finder_support import written_paths
+from open_closed_finder_support import protocol_reports_from, written_paths
 from protocol_strings import reports_for
-from typescript_finder_support import CHECKS
 
-_FINDER = CHECKS / "experimental" / "open-closed" / "python" / "protocol_strings.py"
 _WORDS = st.sampled_from(
     [
         "payment", "was", "declined", "by", "the", "bank", "account",
@@ -47,27 +43,6 @@ _DECLINED = "Payment was declined by the bank"
 _REFUSED = "Le paiement a été refusé"
 
 
-def report_from(tmp_path: Path, files: dict[str, str]) -> list[str]:
-    paths: list[str] = []
-
-    for relative, source in files.items():
-        module = tmp_path / relative
-        module.parent.mkdir(parents=True, exist_ok=True)
-        _ = module.write_text(source, encoding="utf-8")
-        paths.append(relative)
-
-    finished = subprocess.run(
-        [sys.executable, str(_FINDER)],
-        input="\n".join(paths),
-        capture_output=True,
-        text=True,
-        check=True,
-        cwd=tmp_path,
-    )
-
-    return finished.stdout.splitlines()
-
-
 def test_flags_behavior_selected_by_python_response_text_in_typescript(
     tmp_path: Path,
 ) -> None:
@@ -83,7 +58,7 @@ def test_flags_behavior_selected_by_python_response_text_in_typescript(
         ),
     }
 
-    assert report_from(tmp_path, files) == [
+    assert protocol_reports_from(tmp_path, files) == [
         (
             'web/account.ts:2: branches on human-readable error text "Account '
             'name already exists" produced at server/account.py:2; use a '
@@ -105,7 +80,7 @@ def test_allows_stable_machine_error_codes(tmp_path: Path) -> None:
         ),
     }
 
-    assert report_from(tmp_path, files) == []
+    assert protocol_reports_from(tmp_path, files) == []
 
 
 def test_allows_human_message_used_only_for_display(tmp_path: Path) -> None:
@@ -119,7 +94,7 @@ def test_allows_human_message_used_only_for_display(tmp_path: Path) -> None:
         ),
     }
 
-    assert report_from(tmp_path, files) == []
+    assert protocol_reports_from(tmp_path, files) == []
 
 
 def test_flags_typescript_error_text_compared_in_python(
@@ -135,7 +110,7 @@ def test_flags_typescript_error_text_compared_in_python(
         ),
     }
 
-    assert report_from(tmp_path, files) == [
+    assert protocol_reports_from(tmp_path, files) == [
         (
             'worker/retry.py:2: branches on human-readable error text "Remote '
             'service did not answer" produced at web/error.ts:1; use a stable '

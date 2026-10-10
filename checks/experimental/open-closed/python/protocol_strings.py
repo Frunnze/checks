@@ -5,45 +5,44 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from javascript_strings import decoded_javascript_string
 from module_constants import string_constants
+from ocp_findings import CONTAINER_NODES, IDENTITY_NODES, MEMBERSHIP_NODES
 from python_structure_types import parsed_module
 from standard_input import paths_from_standard_input
 
 _ERROR_FIELDS = {"content", "detail", "error", "message", "reason"}
 _ERROR_CONSTRUCTORS = ("Error", "Exception", "Response")
+_PYTHON_SUFFIXES = (".py",)
+_TYPESCRIPT_SUFFIXES = (".ts", ".tsx", ".mts", ".cts")
+_SOURCE_SUFFIXES = (*_PYTHON_SUFFIXES, *_TYPESCRIPT_SUFFIXES)
+_CONSUMER_SUFFIXES = {
+    "python": _PYTHON_SUFFIXES,
+    "typescript": _TYPESCRIPT_SUFFIXES,
+}
 _COMMENT_START = "/"
+_QUOTES = ('"', "'", "`")
 _LEXICAL_TOKEN = re.compile(
     r"//[^\n]*|/\*.*?\*/"
-    r'|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'|`(?:\\.|[^`\\])*`',
+    r'|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'|`(?:\\.|[^`\\])*`'
+    r"|[A-Za-z_$][\w$]*",
     re.DOTALL,
 )
-_ESCAPE = re.compile(
-    r"\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|\r\n|.)",
-    re.DOTALL,
-)
-_CODE_POINT_ESCAPES = ("u", "x")
-_CHARACTER_ESCAPES = {
-    "0": "\0",
-    "b": "\b",
-    "f": "\f",
-    "n": "\n",
-    "r": "\r",
-    "t": "\t",
-    "v": "\v",
-    "\n": "",
-    "\r": "",
-    "\r\n": "",
-    "\u2028": "",
-    "\u2029": "",
-}
 _COMPARISON_BEFORE = re.compile(r"(?:===|!==|==|!=)\s*$")
 _COMPARISON_AFTER = re.compile(r"^\s*(?:===|!==|==|!=)")
+_CASE_BEFORE = re.compile(r"\bcase\s+$")
 _FIELD_BEFORE = re.compile(
     r"(?:content|detail|error|message|reason)\s*:\s*$"
 )
 _CONSTRUCTOR_BEFORE = re.compile(
-    r"new\s+(?:[A-Za-z_$][\w$]*)?(?:Error|Exception|Response)\s*\(\s*$"
+    r"(?:new\s+)?(?:[A-Za-z_$][\w$]*)?(?:Error|Exception|Response)\s*\(\s*$"
 )
+_CONSTANT_BEFORE = re.compile(
+    r"\bconst\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*$"
+)
+
+
+MessageToken = tuple[re.Match[str], str]
 
 
 @dataclass(frozen=True, order=True)
@@ -107,51 +106,31 @@ def _python_occurrences(
                 ):
                     produced.append(Occurrence(path, node.lineno, value))
 
-        if (
-            isinstance(node, ast.Compare)
-            and len(node.ops) == 1
-            and isinstance(node.ops[0], (ast.Eq, ast.NotEq, ast.Is, ast.IsNot))
-        ):
-            values = [
-                _constant_value(node.left, constants),
-                *(
-                    _constant_value(comparator, constants)
-                    for comparator in node.comparators
-                ),
-            ]
+        if not isinstance(node, (ast.Compare, ast.MatchValue)):
+            continue
 
-            for value in values:
-                if value is not None and _is_human_message(value):
-                    consumed.append(Occurrence(path, node.lineno, value))
+        for compared in _compared_operands(node):
+            value = _constant_value(compared, constants)
+
+            if value is not None and _is_human_message(value):
+                consumed.append(Occurrence(path, node.lineno, value))
 
     return produced, consumed
 
 
-def _unescaped(escape: re.Match[str]) -> str:
-    sequence = escape.group(1)
+def _compared_operands(node: ast.Compare | ast.MatchValue) -> list[ast.expr]:
+    if isinstance(node, ast.MatchValue):
+        return [node.value]
+    if len(node.ops) != 1:
+        return []
+    if isinstance(node.ops[0], IDENTITY_NODES):
+        return [node.left, *node.comparators]
+    if isinstance(node.ops[0], MEMBERSHIP_NODES) and isinstance(
+        node.comparators[0], CONTAINER_NODES
+    ):
+        return list(node.comparators[0].elts)
 
-    if len(sequence) > 1 and sequence.startswith(_CODE_POINT_ESCAPES):
-        code_point = int(sequence[1:].strip("{}"), 16)
-
-        if code_point > sys.maxunicode:
-            return escape.group()
-
-        return chr(code_point)
-
-    return _CHARACTER_ESCAPES.get(sequence, sequence)
-
-
-def _decoded_javascript_string(written: str) -> str | None:
-    body = written[1:-1]
-
-    if written.startswith("`") and "${" in body:
-        return None
-
-    code_units = _ESCAPE.sub(_unescaped, body).encode(
-        "utf-16-le", "surrogatepass"
-    )
-
-    return code_units.decode("utf-16-le", "surrogatepass")
+    return []
 
 
 def _typescript_occurrences(
@@ -160,36 +139,69 @@ def _typescript_occurrences(
     produced: list[Occurrence] = []
     consumed: list[Occurrence] = []
 
-    for match in _LEXICAL_TOKEN.finditer(source):
-        if match.group().startswith(_COMMENT_START):
-            continue
-
-        value = _decoded_javascript_string(match.group())
-
-        if value is None or not _is_human_message(value):
-            continue
-
-        before = source[max(0, match.start() - 100) : match.start()]
-        after = source[match.end() : match.end() + 20]
-        line_number = source.count("\n", 0, match.start()) + 1
+    for token, value in _message_tokens(source):
+        before = _text_before(source, token)
+        after = source[token.end() : token.end() + 20]
+        line_number = source.count("\n", 0, token.start()) + 1
         occurrence = Occurrence(path, line_number, value)
 
         if _FIELD_BEFORE.search(before) or _CONSTRUCTOR_BEFORE.search(before):
             produced.append(occurrence)
-        if _COMPARISON_BEFORE.search(before) or _COMPARISON_AFTER.search(after):
+        if (
+            _COMPARISON_BEFORE.search(before)
+            or _CASE_BEFORE.search(before)
+            or _COMPARISON_AFTER.search(after)
+        ):
             consumed.append(occurrence)
 
     return produced, consumed
 
 
-def reports_for(paths: list[str]) -> list[str]:
+def _message_tokens(source: str) -> list[MessageToken]:
+    messages: list[MessageToken] = []
+    constants: dict[str, str] = {}
+    names: list[re.Match[str]] = []
+
+    for token in _LEXICAL_TOKEN.finditer(source):
+        if token.group().startswith(_COMMENT_START):
+            continue
+        if not token.group().startswith(_QUOTES):
+            names.append(token)
+            continue
+
+        value = decoded_javascript_string(token.group())
+
+        if value is None or not _is_human_message(value):
+            continue
+
+        declared = _CONSTANT_BEFORE.search(_text_before(source, token))
+
+        if declared is not None:
+            constants[declared.group(1)] = value
+
+        messages.append((token, value))
+
+    for name in names:
+        if name.group() in constants:
+            messages.append((name, constants[name.group()]))
+
+    return messages
+
+
+def _text_before(source: str, token: re.Match[str]) -> str:
+    return source[max(0, token.start() - 100) : token.start()]
+
+
+def reports_for(
+    paths: list[str], consumer_suffixes: tuple[str, ...] = _SOURCE_SUFFIXES
+) -> list[str]:
     produced: list[Occurrence] = []
     consumed: list[Occurrence] = []
 
     for path in paths:
-        if path.endswith(".py"):
+        if path.endswith(_PYTHON_SUFFIXES):
             additions = _python_occurrences(path, parsed_module(path))
-        elif path.endswith((".ts", ".tsx", ".mts", ".cts")):
+        elif path.endswith(_TYPESCRIPT_SUFFIXES):
             source = Path(path).read_text(encoding="utf-8", errors="replace")
             additions = _typescript_occurrences(path, source)
         else:
@@ -206,6 +218,9 @@ def reports_for(paths: list[str]) -> list[str]:
     reports: list[str] = []
 
     for consumer in sorted(set(consumed)):
+        if not consumer.path.endswith(consumer_suffixes):
+            continue
+
         producers = sorted(
             producer
             for producer in by_text.get(consumer.text, [])
@@ -227,7 +242,13 @@ def reports_for(paths: list[str]) -> list[str]:
 
 
 def main() -> None:
-    for report in reports_for(paths_from_standard_input()):
+    consumer_suffixes = (
+        _CONSUMER_SUFFIXES[sys.argv[1]]
+        if len(sys.argv) > 1
+        else _SOURCE_SUFFIXES
+    )
+
+    for report in reports_for(paths_from_standard_input(), consumer_suffixes):
         _ = sys.stdout.write(f"{report}\n")
 
 

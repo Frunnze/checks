@@ -164,6 +164,109 @@ def test_flags_five_strings_compared_to_one_subject(
     ]
 
 
+def test_flags_dispatch_over_as_const_values(tmp_path: Path) -> None:
+    files = {
+        "src/kinds.ts": (
+            "export const Kind = {\n"
+            "  Deck: 'deck', File: 'file', Note: 'note'\n"
+            "} as const;\n"
+            "export type Kind = (typeof Kind)[keyof typeof Kind];\n"
+            "export function route(kind: Kind): number {\n"
+            "  if (kind === Kind.Deck) return 0;\n"
+            "  if (kind === Kind.File) return 1;\n"
+            "  return kind === Kind.Note ? 2 : -1;\n"
+            "}\n"
+        ),
+        "src/names.ts": (
+            "const DECK = 'deck' as const;\n"
+            "const FILE = 'file' as const;\n"
+            "const NOTE = 'note' as const;\n"
+            "export function name(kind: string): number {\n"
+            "  if (kind === DECK) return 0;\n"
+            "  if (kind === FILE) return 1;\n"
+            "  return kind === NOTE ? 2 : -1;\n"
+            "}\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == [
+        (
+            "src/kinds.ts:5: route compares kind to 3 enum members: "
+            "Kind.Deck, Kind.File, Kind.Note"
+        ),
+        "src/names.ts:4: name compares kind to 3 strings: deck, file, note",
+    ]
+
+
+def test_flags_constants_imported_from_another_module(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/kinds.ts": (
+            "export const DECK = 'deck';\n"
+            "export const FILE = 'file';\n"
+            "export const NOTE = 'note';\n"
+        ),
+        "src/route.ts": (
+            "import { DECK, FILE, NOTE } from './kinds';\n"
+            "export function route(kind: string): number {\n"
+            "  if (kind === DECK) return 0;\n"
+            "  if (kind === FILE) return 1;\n"
+            "  return kind === NOTE ? 2 : -1;\n"
+            "}\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == [
+        "src/route.ts:2: route compares kind to 3 strings: deck, file, note"
+    ]
+
+
+def test_flags_enum_members_listed_in_includes(tmp_path: Path) -> None:
+    source = (
+        "export enum Kind { Deck = 'deck', File = 'file', Note = 'note' }\n"
+        "export function isKnown(kind: Kind): boolean {\n"
+        "  return [Kind.Deck, Kind.File, Kind.Note].includes(kind);\n"
+        "}\n"
+    )
+
+    assert _report_for(tmp_path, source) == [
+        (
+            f"{_MODULE}:2: isKnown compares kind to 3 enum members: "
+            "Kind.Deck, Kind.File, Kind.Note"
+        )
+    ]
+
+
+def test_flags_enum_dispatch_imported_through_a_tsconfig_path_alias(
+    tmp_path: Path,
+) -> None:
+    _ = (tmp_path / "tsconfig.json").write_text(
+        '{ "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }\n',
+        encoding="utf-8",
+    )
+    files = {
+        "src/kinds.ts": (
+            "export enum Kind { Deck = 'deck', File = 'file', Note = 'note' }\n"
+        ),
+        "src/route.ts": (
+            "import { Kind } from '@/kinds';\n"
+            "export function route(kind: Kind): number {\n"
+            "  if (kind === Kind.Deck) return 0;\n"
+            "  if (kind === Kind.File) return 1;\n"
+            "  return kind === Kind.Note ? 2 : -1;\n"
+            "}\n"
+        ),
+    }
+
+    assert report_from(_FINDER, tmp_path, files) == [
+        (
+            "src/route.ts:2: route compares kind to 3 enum members: "
+            "Kind.Deck, Kind.File, Kind.Note"
+        )
+    ]
+
+
 @given(name=st.text(alphabet="ab \t", min_size=1, max_size=8))
 @example(name="a b")
 @settings(max_examples=15, deadline=None)

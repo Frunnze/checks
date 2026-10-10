@@ -52,6 +52,49 @@ def test_flags_behavior_split_across_python_registries(
     ]
 
 
+def test_flags_behavior_split_across_enum_keyed_registries(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/policy.py": (
+            "from enum import Enum\n"
+            "class Kind(Enum):\n"
+            "    DECK = 'deck'\n    FILE = 'file'\n    NOTE = 'note'\n"
+            "HANDLERS = {\n"
+            "    Kind.DECK: open_deck, Kind.FILE: open_file, "
+            "Kind.NOTE: open_note\n"
+            "}\n"
+            "LABELS = {\n"
+            "    Kind.DECK: 'Deck', Kind.FILE: 'File', Kind.NOTE: 'Note'\n"
+            "}\n"
+        )
+    }
+
+    assert report_from(tmp_path, files) == [
+        (
+            "src/policy.py:6: Kind behavior is split across 2 "
+            "registries in 1 file: HANDLERS, LABELS"
+        )
+    ]
+
+
+def test_does_not_treat_export_lists_as_registries(tmp_path: Path) -> None:
+    files = {
+        "src/pkg/core.py": (
+            "class Client:\n    pass\n"
+            "class Config:\n    pass\n"
+            "class Session:\n    pass\n"
+            "__all__ = ['Client', 'Config', 'Session']\n"
+        ),
+        "src/pkg/__init__.py": (
+            "from pkg.core import Client, Config, Session\n"
+            "__all__ = ['Client', 'Config', 'Session']\n"
+        ),
+    }
+
+    assert report_from(tmp_path, files) == []
+
+
 def test_does_not_merge_unrelated_python_registry_domains(
     tmp_path: Path,
 ) -> None:
