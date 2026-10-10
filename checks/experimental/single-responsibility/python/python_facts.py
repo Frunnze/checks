@@ -44,7 +44,7 @@ def collect_scope(
         visible.update(
             (child.name, f"{owner}.{child.name}")
             for child in scopes
-            if isinstance(child, FUNCTIONS)
+            if isinstance(child, (ast.ClassDef, *FUNCTIONS))
             and child.name not in replaced_names
         )
         visible = {
@@ -133,7 +133,7 @@ def collect_scope(
             available.update(
                 (nested.name, f"{name}.{nested.name}")
                 for nested in direct_scopes(child)
-                if isinstance(nested, FUNCTIONS)
+                if isinstance(nested, (ast.ClassDef, *FUNCTIONS))
                 and nested.name not in replaced
             )
             collector = RuntimeMetrics(

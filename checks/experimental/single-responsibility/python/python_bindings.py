@@ -120,7 +120,8 @@ def called_client_type(call: ast.Call, bindings: dict[str, str]) -> str:
         return bindings[returned_type_key]
     resolved = qualified(call, bindings)
     operation = resolved.rsplit(".", 1)[-1]
-    if operation[:1].isupper() or operation in CLIENT_FACTORY_OPERATIONS:
+    constructed = operation.removeprefix("local:")[:1].isupper()
+    if constructed or operation in CLIENT_FACTORY_OPERATIONS:
         return resolved
     return ""
 

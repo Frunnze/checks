@@ -31,6 +31,41 @@ def test_class_methods_can_call_module_helpers(tmp_path, suffix):
     assert set(unit["delegated_effect_domains"]) == {"network", "filesystem"}
 
 
+@pytest.mark.parametrize(
+    "suffix, call",
+    [
+        (".py", "Storage.save(path, text)"),
+        (".py", "Storage().save(path, text)"),
+        (".py", "storage = Storage()\n    storage.save(path, text)"),
+        (".ts", "Storage.save(path, text)"),
+        (".ts", "new Storage().save(path, text)"),
+        (".ts", "const storage = new Storage();\n  storage.save(path, text)"),
+    ],
+)
+def test_same_file_class_methods_are_followed(tmp_path, suffix, call):
+    if suffix == ".py":
+        source = (
+            "import requests\nfrom pathlib import Path\n\n\nclass Storage:\n"
+            "    @staticmethod\n    def save(path, text):\n"
+            "        Path(path).write_text(text)\n\n\n"
+            "def sync(url, path):\n    text = requests.get(url).text\n"
+            f"    {call}\n"
+        )
+    else:
+        static = "static " if call.startswith("Storage.") else ""
+        source = (
+            'import axios from "axios";\nimport * as fs from "node:fs";\n\n'
+            f"class Storage {{\n  {static}save(path: string, text: string) {{\n"
+            "    fs.writeFileSync(path, text);\n  }\n}\n\n"
+            "export async function sync(url: string, path: string) {\n"
+            "  const text = (await axios.get(url)).data;\n"
+            f"  {call};\n}}\n"
+        )
+    unit = unit_named(run_report(tmp_path, source, suffix), "<module>.sync")
+
+    assert unit["entities"] == ["filesystem", "network"]
+
+
 @pytest.mark.parametrize("suffix", [".py", ".ts"])
 def test_nested_helpers_are_resolved_in_their_enclosing_scope(tmp_path, suffix):
     helpers = helper_source(suffix).replace("export function", "function")

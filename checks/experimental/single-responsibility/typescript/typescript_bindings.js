@@ -1,4 +1,6 @@
 const ts = require(process.argv[2]);
+const clientFactoryOperations = new Set(["connect", "create", "createClient", "createConnection",
+  "createPool", "createTransport"]);
 
 function isCallable(node) {
   return ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) ||
@@ -128,13 +130,19 @@ function annotationType(node, bindings) {
   return resolved && !resolved.startsWith("local:") ? resolved : "";
 }
 
+function calledClientType(call, bindings) {
+  const called = qualified(call.expression, bindings);
+  return !called.startsWith("local:") && clientFactoryOperations.has(called.split(".").at(-1)) ? called : "";
+}
+
 function assignedValue(value, bindings) {
   while (value && (ts.isParenthesizedExpression(value) || ts.isAsExpression(value) ||
-      ts.isNonNullExpression(value) || ts.isSatisfiesExpression(value))) value = value.expression;
+      ts.isNonNullExpression(value) || ts.isSatisfiesExpression(value) ||
+      ts.isAwaitExpression(value))) value = value.expression;
   if (value && ts.isCallExpression(value) && qualified(value.expression, bindings) === "global.require" &&
       value.arguments.length === 1 && ts.isStringLiteral(value.arguments[0])) return value.arguments[0].text;
-  return value && !ts.isCallExpression(value) && !ts.isAwaitExpression(value)
-    ? qualified(value, bindings) : "";
+  if (value && ts.isCallExpression(value)) return calledClientType(value, bindings);
+  return value ? qualified(value, bindings) : "";
 }
 
 function bindAssignment(node, bindings) {

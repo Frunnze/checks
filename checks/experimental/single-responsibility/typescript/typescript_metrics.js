@@ -67,8 +67,9 @@ function runtimeMetrics(source, node, facts, bindings, globals, members, method 
         blockLinks.add(link);
       }
       const local = call.startsWith("local:") ? call.slice(6) : "";
-      if (visible.has(local) && (!locals.has(local) || localDefinitions.has(local))) {
-        const link = visible.get(local);
+      const head = local.split(".")[0];
+      if (visible.has(head) && (!locals.has(head) || localDefinitions.has(head))) {
+        const link = visible.get(head) + local.slice(head.length);
         links.add(link);
         blockLinks.add(link);
       }
@@ -107,8 +108,8 @@ function runtimeMetrics(source, node, facts, bindings, globals, members, method 
     // Evaluate the initializer with the previous binding before replacing it.
     bindAssignment(child, bindings);
   }
-  if (ts.isBlock(node.body) || ts.isSourceFile(node.body)) {
-    for (const statement of node.body.statements) {
+  if (ts.isBlock(node.body) || ts.isSourceFile(node.body) || (isClass(node.body) && !isCallable(node))) {
+    for (const statement of node.body.statements ?? node.body.members) {
       blockCalls = new Set();
       blockLinks = new Set();
       visit(statement);

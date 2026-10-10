@@ -26,6 +26,24 @@ DEFAULTS = (
     "    with open(path, 'w') as handle:\n"
     "        handle.write(payload)\n"
 )
+TYPESCRIPT_SCRIPT = (
+    'import axios from "axios";\nimport * as fs from "node:fs";\n\n'
+    'const response = await axios.get("https://example.com");\n'
+    'fs.writeFileSync("out.txt", response.data);\n'
+    "export {};\n"
+)
+TYPESCRIPT_CLASS_BODIES = (
+    (
+        '  remote = axios.get("https://example.com");\n'
+        '  local = fs.readFileSync("settings.txt");\n'
+    ),
+    (
+        "  static {\n"
+        '    axios.get("https://example.com");\n'
+        '    fs.readFileSync("settings.txt");\n'
+        "  }\n"
+    ),
+)
 WIRING = (
     "import logging\n"
     "from dataclasses import dataclass, field\n\n"
@@ -57,6 +75,29 @@ def test_definition_time_effects_count_for_their_owner(
     report = run_report(tmp_path, source)
 
     owner = unit_named(report, owner_name)
+
+    assert owner["entities"] == ["filesystem", "network"]
+    assert report["failed"]
+
+
+def test_typescript_top_level_effects_count_for_the_module(tmp_path):
+    report = run_report(tmp_path, TYPESCRIPT_SCRIPT, ".ts")
+
+    module = unit_named(report, "<module>")
+
+    assert module["entities"] == ["filesystem", "network"]
+    assert report["failed"]
+
+
+@pytest.mark.parametrize("members", TYPESCRIPT_CLASS_BODIES)
+def test_typescript_class_initializers_count_for_the_class(tmp_path, members):
+    source = (
+        'import axios from "axios";\nimport * as fs from "node:fs";\n\n'
+        "export class Settings {\n" + members + "}\n"
+    )
+    report = run_report(tmp_path, source, ".ts")
+
+    owner = unit_named(report, "<module>.Settings")
 
     assert owner["entities"] == ["filesystem", "network"]
     assert report["failed"]

@@ -40,6 +40,25 @@ def test_python_reexported_class_aliases_preserve_clients(tmp_path):
     assert unit_named(run_project(tmp_path), "<module>.Worker")["coefficient"] == 0.5
 
 
+def test_python_library_values_imported_from_a_package_keep_their_entity(
+    tmp_path,
+):
+    package = tmp_path / "app"
+    package.mkdir()
+    (package / "__init__.py").write_text("")
+    (package / "cache.py").write_text("import redis\n\ncache = redis.Redis()\n")
+    (package / "reports.py").write_text(
+        "from pathlib import Path\n\nfrom app.cache import cache\n\n\n"
+        "def archive(path, key):\n"
+        "    Path(path).write_text(key)\n"
+        "    cache.set(key, path)\n"
+    )
+
+    unit = unit_named(run_project(tmp_path), "<module>.archive")
+
+    assert unit["entities"] == ["filesystem", "persistence"]
+
+
 def test_explicit_root_resolves_individually_selected_namespace_files(tmp_path):
     root = tmp_path / "code"
     write_split_project(root, ".py")
@@ -114,6 +133,35 @@ def test_typescript_export_forms_are_resolved(tmp_path, form):
         client.write_text(source)
 
     assert unit_named(run_project(tmp_path), "<module>.Worker")["coefficient"] == 0.5
+
+
+@pytest.mark.parametrize(
+    "export, imported",
+    [
+        ("export const prisma = new PrismaClient();", "{ prisma }"),
+        ("const prisma = new PrismaClient();\nexport { prisma };", "{ prisma }"),
+        ("const prisma = new PrismaClient();\nexport default prisma;", "prisma"),
+    ],
+)
+def test_typescript_exported_client_instances_keep_their_entity(
+    tmp_path, export, imported
+):
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "app").mkdir()
+    (tmp_path / "lib" / "prisma.ts").write_text(
+        'import { PrismaClient } from "@prisma/client";\n\n' + export + "\n"
+    )
+    (tmp_path / "app" / "users.ts").write_text(
+        'import * as fs from "node:fs";\n\n'
+        f'import {imported} from "../lib/prisma";\n\n'
+        "export async function exportUsers(path: string) {\n"
+        "  const users = await prisma.user.findMany();\n"
+        "  fs.writeFileSync(path, JSON.stringify(users));\n}\n"
+    )
+
+    unit = unit_named(run_project(tmp_path), "<module>.exportUsers")
+
+    assert unit["entities"] == ["filesystem", "persistence"]
 
 
 def test_typescript_paths_respect_inherited_tsconfig(tmp_path):

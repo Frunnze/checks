@@ -180,8 +180,9 @@ class RuntimeMetrics:
             self.links.add(link)
             self.block_links.add(link)
         local = call.removeprefix("local:") if call.startswith("local:") else ""
-        if local in self.visible and local not in self.locals:
-            link = self.visible[local]
+        head, separator, attribute = local.partition(".")
+        if head in self.visible and head not in self.locals:
+            link = self.visible[head] + separator + attribute
             self.links.add(link)
             self.block_links.add(link)
 

@@ -27,7 +27,7 @@ def canonical_reference(resolver, path, reference, seen=frozenset()):
                 values.add(
                     canonical_reference(resolver, target, module + "." + symbol, seen)
                 )
-        else:
+        elif export is not None:
             values.add("local:" + reference)
     return next(iter(values)) if len(values) == 1 else "local:" + reference
 
