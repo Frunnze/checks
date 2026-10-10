@@ -4,6 +4,7 @@ from pathlib import Path
 from check_support import (
     COPIED_TOOLKIT,
     CheckRun,
+    link_toolkit_node_modules,
     repository,
     run_check,
     stage_file,
@@ -56,6 +57,32 @@ JOINED_DEFINITIONS = {
     ),
     "underscore_function": "export function _loadAndSave(): void {}\n",
     "underscore_class": "export class _LoadAndSave {}\n",
+    "callback_parameter": (
+        "export class Holder {\n"
+        "  loadAndSave(onDone: () => void): void {}\n"
+        "}\n"
+    ),
+    "decorated_parameter": (
+        "export class Holder {\n"
+        "  loadAndSave(@Body() item: string): void {}\n"
+        "}\n"
+    ),
+    "nested_generic_method": (
+        "export class Holder {\n"
+        "  loadAndSave<T extends Map<string, number>>(item: T): T {\n"
+        "    return item;\n"
+        "  }\n"
+        "}\n"
+    ),
+    "interface_method": (
+        "export interface Store {\n"
+        "  loadAndSave(onDone: () => void): void;\n"
+        "}\n"
+    ),
+    "typed_arrow_property": (
+        "type Handler = () => void;\n\n"
+        "export class Holder {\n  loadAndSave: Handler = () => {};\n}\n"
+    ),
 }
 JOINED_CALLS = {
     "call_statement": (
@@ -66,6 +93,11 @@ JOINED_CALLS = {
         'import { loadAndSave } from "./library";\n\n'
         "export function caller(items: string[]): void {\n"
         "  loadAndSave(items);\n}\n"
+    ),
+    "wrapped_call": (
+        'import { loadAndSave } from "./library";\n\n'
+        "export function caller(items: string[]): void {\n"
+        "  loadAndSave(\n    items,\n  );\n}\n"
     ),
 }
 OPERATOR_HOOKS = (
@@ -92,6 +124,7 @@ def test_reports_every_typescript_definition_with_a_joined_name(
     tmp_path: Path,
 ) -> None:
     repository(tmp_path)
+    link_toolkit_node_modules(tmp_path)
 
     for form, source in JOINED_DEFINITIONS.items():
         stage_file(tmp_path, f"{TYPESCRIPT_FOLDER}/{form}.ts", source)
@@ -107,6 +140,7 @@ def test_never_reports_a_typescript_call_of_a_joined_name(
     tmp_path: Path,
 ) -> None:
     repository(tmp_path)
+    link_toolkit_node_modules(tmp_path)
 
     for form, source in JOINED_CALLS.items():
         stage_file(tmp_path, f"{TYPESCRIPT_FOLDER}/{form}.ts", source)
