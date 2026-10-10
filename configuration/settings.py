@@ -13,9 +13,11 @@ from settings_validation import (
     SOURCE_SETTING,
     STABLE_DIRECTORY,
     TOOL_OPTIONS,
+    TOOLKIT_DIRECTORY,
     Configuration,
     ConfigurationError,
     as_table,
+    validate_check_name,
     validate_configuration,
 )
 
@@ -32,6 +34,8 @@ EVERY_STAGE = "all"
 ENABLED_CHECKS_SETTING = "enabled_check_directories"
 BARE_TOML_KEY = re.compile(r"[A-Za-z0-9_-]+")
 ERROR_PREFIX = "pre-commit: checks.toml:"
+DELETE_CHARACTER = "\x7f"
+ESCAPED_DELETE = "\\u007f"
 
 
 def with_defaults(written_settings: Configuration) -> Configuration:
@@ -99,9 +103,13 @@ def enabled_check_directories(
             continue
 
         if is_stable(check_name):
-            enabled_directories.append(STABLE_DIRECTORY / check_name)
+            check_directory = STABLE_DIRECTORY / check_name
         else:
-            enabled_directories.append(EXPERIMENTAL_DIRECTORY / check_name)
+            check_directory = EXPERIMENTAL_DIRECTORY / check_name
+
+        enabled_directories.append(
+            check_directory.relative_to(TOOLKIT_DIRECTORY)
+        )
 
     return enabled_directories
 
@@ -116,6 +124,7 @@ def setting_value(configuration: Configuration, setting_name: str) -> object:
 
     if section_name == CHECKS_SETTING:
         check_name, _, field = key.partition(".")
+        validate_check_name(check_name)
         settings = check_settings(configuration, check_name)
 
         if field not in settings:
@@ -135,7 +144,13 @@ def toml_key(key: str) -> str:
     if BARE_TOML_KEY.fullmatch(key):
         return key
 
-    return json.dumps(key)
+    return toml_value(key)
+
+
+def toml_value(written_value: object) -> str:
+    json_text = json.dumps(written_value, ensure_ascii=False)
+
+    return json_text.replace(DELETE_CHARACTER, ESCAPED_DELETE)
 
 
 def toml_override_lines(
@@ -150,7 +165,7 @@ def toml_override_lines(
             nested_table = cast("dict[str, object]", nested_value)
             lines.extend(toml_override_lines(nested_table, f"{dotted_key}."))
         else:
-            lines.append(f"{dotted_key} = {json.dumps(nested_value)}")
+            lines.append(f"{dotted_key} = {toml_value(nested_value)}")
 
     return lines
 

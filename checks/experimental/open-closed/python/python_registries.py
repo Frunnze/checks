@@ -96,7 +96,7 @@ def _group_covering(
     groups: list[list[Registry]], registry: Registry
 ) -> list[Registry] | None:
     for group in groups:
-        if _same_axis(registry.axis, group[0].axis):
+        if all(_same_axis(registry.axis, member.axis) for member in group):
             return group
 
     return None

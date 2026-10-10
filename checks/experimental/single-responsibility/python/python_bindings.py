@@ -24,6 +24,8 @@ RETURNED_TYPE_SUFFIX = "()"
 
 def scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
     for child in ast.iter_child_nodes(node):
+        if isinstance(node, ast.comprehension) and child is node.target:
+            continue
         yield child
         if not isinstance(child, SCOPES):
             yield from scope_nodes(child)
@@ -50,7 +52,7 @@ def imports_in(node: ast.AST) -> dict[str, str]:
 def bound_names(node: ast.AST) -> set[str]:
     return {
         child.id
-        for child in ast.walk(node)
+        for child in scope_nodes(node)
         if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store)
     }
 

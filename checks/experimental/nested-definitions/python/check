@@ -5,9 +5,9 @@ set -e
 echo "pre-commit: nested definitions in python (no def inside a def)"
 echo "pre-commit: keep it testable - nothing can reach a def hidden in a def"
 
-nested_definitions=$(python_files_in $(sources_and_tests "$@") \
-    | "$toolkit_python" "$(dirname "$0")/nested_definitions.py" \
-    | reportable_findings)
+findings=$(python_files_in $(sources_and_tests "$@") \
+    | "$toolkit_python" "$(dirname "$0")/nested_definitions.py")
+nested_definitions=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$nested_definitions" \
     "these definitions are nested - lift them out:"

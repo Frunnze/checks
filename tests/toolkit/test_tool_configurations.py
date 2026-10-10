@@ -8,7 +8,7 @@ from hypothesis import strategies as st
 
 from settings_validation import ConfigurationError
 from dependency_analyser_settings import dependency_analyser_configuration
-from phpstan_settings import phpstan_configuration
+from phpstan_settings import php_version_of, phpstan_configuration
 from tool_configurations import eslint_configuration, phpcs_configuration
 
 PACKAGE = Path("/project/api")
@@ -214,3 +214,41 @@ def test_phpstan_lets_written_parameters_win_over_derived_ones() -> None:
         "phpVersion": 80300,
         "scanFiles": ["/project/plugin.php"],
     }
+
+
+@pytest.mark.parametrize(
+    ("requirement", "php_version"),
+    [
+        ("^7.4 || ^8.1", 70400),
+        ("^8.1 || ^7.4", 70400),
+        ("<8.0 >=7.2", 70200),
+        ("~8.2.0", 80200),
+    ],
+)
+def test_php_version_is_the_lowest_one_the_requirement_allows(
+    tmp_path: Path, requirement: str, php_version: int
+) -> None:
+    manifest = {"require": {"php": requirement}}
+    _ = (tmp_path / "composer.json").write_text(
+        json.dumps(manifest), encoding="utf-8"
+    )
+
+    assert php_version_of(tmp_path) == php_version
+
+
+def test_eslint_rejects_a_preset_that_is_not_a_name() -> None:
+    with pytest.raises(ConfigurationError, match="presets"):
+        _ = eslint_configuration({"presets": [[]]}, PRESETS_MODULE, PACKAGE)
+
+
+def test_dependency_analyser_rejects_an_error_type_that_is_not_a_name(
+) -> None:
+    with pytest.raises(ConfigurationError, match="ignore-errors"):
+        _ = dependency_analyser_configuration({"ignore-errors": [{}]})
+
+
+def test_phpcs_rejects_a_standard_that_is_not_a_name() -> None:
+    with pytest.raises(ConfigurationError, match="standard"):
+        _ = phpcs_configuration(
+            {"standard": ["PSR12", "PSR2"]}, BASE_RULESET
+        )

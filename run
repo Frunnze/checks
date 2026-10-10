@@ -7,9 +7,22 @@ configuration_file="$project_root/checks.toml"
 hook_stage=all
 
 if [ "$1" = --stage ]; then
+    if [ $# -lt 2 ]; then
+        echo "pre-commit: --stage needs a value" >&2
+        exit 1
+    fi
+
     hook_stage=$2
     shift 2
 fi
+
+case "$hook_stage" in
+    pre-commit | pre-push | ci | all) ;;
+    *)
+        echo "pre-commit: --stage must be pre-commit, pre-push or ci" >&2
+        exit 1
+        ;;
+esac
 
 requested_checks=" $* "
 check_name=""
@@ -29,6 +42,11 @@ if [ ! -f "$configuration_file" ]; then
 fi
 
 source_directories=$(setting source_directories)
+
+for requested_check in "$@"; do
+    setting "checks.$requested_check.when" > /dev/null
+done
+
 configured_stage=$hook_stage
 
 if [ "$hook_stage" = ci ]; then
@@ -56,7 +74,8 @@ require_source_directories() {
 
 require_source_directories $source_directories
 
-for check_directory in $enabled_check_directories; do
+for enabled_directory in $enabled_check_directories; do
+    check_directory="$toolkit/$enabled_directory"
     check_name=$(basename "$check_directory")
     check_scope=$(setting "checks.$check_name.scope")
     checked_directories=$(setting "checks.$check_name.source_directories")

@@ -2,23 +2,30 @@
 set -e
 . "$toolkit/tools.sh"
 
-joined_name='[A-Za-z0-9]*(And|Or)[A-Z]'
-declaring='(export[[:space:]]+)?(default[[:space:]]+)?(async[[:space:]]+)?'
-joined_function="${declaring}function[[:space:]]+$joined_name"
-joined_binding="(const|let|var)[[:space:]]+$joined_name"
-joined_class="(abstract[[:space:]]+)?class[[:space:]]+$joined_name"
-joined_type="(type|interface)[[:space:]]+$joined_name"
-joined_method="(static[[:space:]]+)?[a-z]$joined_name[A-Za-z0-9]*\("
-joined_definition="^[[:space:]]*(export[[:space:]]+)?\
-($joined_function|$joined_binding|$joined_class|$joined_type\
-|$joined_method)"
+gap='[[:space:]]+'
+joined_name='[A-Za-z0-9_$]*(And|Or)[A-Z][A-Za-z0-9_$]*'
+declaring="(export$gap)?(default$gap)?(declare$gap)?(async$gap)?"
+joined_function="${declaring}function[[:space:]]*\*?[[:space:]]*$joined_name"
+joined_binding="$declaring(const|let|var)$gap$joined_name"
+joined_class="$declaring(abstract$gap)?class$gap$joined_name"
+joined_type="$declaring(const$gap)?(type|interface|enum)$gap$joined_name"
+modifiers='((public|private|protected|static|readonly|abstract|override|async'
+modifiers="$modifiers|get|set)$gap)*"
+member_name="$modifiers\*?[[:space:]]*[a-z_$]$joined_name\??"
+parameters='(<[^>]*>)?\([^)]*\)'
+open_parameters='(<[^>]*>)?\([[:space:]]*$'
+joined_method="$member_name($parameters[[:space:]]*(:|\{)|$open_parameters)"
+arrow_value="(async$gap)?(function|$parameters[^=]*=>)"
+joined_property="$member_name[[:space:]]*=[[:space:]]*$arrow_value"
+joined_definition="^[[:space:]]*($joined_function|$joined_binding\
+|$joined_class|$joined_type|$joined_method|$joined_property)"
 
 echo "pre-commit: definition names in typescript (one responsibility per"
 echo "pre-commit: name)"
 echo "pre-commit: follow SRP - split a name that says 'And'/'Or'"
 
-joined_names=$(typescript_files_in "$@" | while read -r source_file; do
-    grep -nHE "$joined_definition" "$source_file" || true
+joined_names=$(typescript_files_in "$@" | while IFS= read -r source_file; do
+    grep -anHE "$joined_definition" "$source_file" || true
 done | reportable_findings)
 
 fail_on_findings "$joined_names" \

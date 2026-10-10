@@ -9,6 +9,7 @@ from dependency_inversion_findings import (
 from factory_dependencies import constructed_dependencies
 from factory_hierarchy import classes_in
 from python_structure_types import Module, modules_from
+from standard_input import paths_from_standard_input
 
 
 def constructed_collaborators(
@@ -68,7 +69,7 @@ def _constructor_of(owner: ast.ClassDef) -> ast.FunctionDef | None:
 
 
 def main() -> None:
-    source_paths = sys.stdin.read().split()
+    source_paths = paths_from_standard_input()
 
     for finding in constructed_collaborators(source_paths):
         _ = sys.stdout.write(

@@ -13,10 +13,26 @@ function namedType(type, displayPathFor) {
   const declarationSource = declaration?.getSourceFile();
   const declarationPath =
     declarationSource === undefined ? "" : displayPathFor(declarationSource);
+  const typeArguments = (type.aliasTypeArguments ?? []).map((argument) =>
+    namedType(argument, displayPathFor),
+  );
+
+  if (typeArguments.some((argument) => argument === undefined)) {
+    return undefined;
+  }
+  if (typeArguments.length === 0) {
+    return {
+      key: `${declarationPath}::${name}`,
+      label: name,
+    };
+  }
+
+  const argumentKeys = typeArguments.map((argument) => argument.key);
+  const argumentLabels = typeArguments.map((argument) => argument.label);
 
   return {
-    key: `${declarationPath}::${name}`,
-    label: name,
+    key: `${declarationPath}::${name}<${argumentKeys.join(", ")}>`,
+    label: `${name}<${argumentLabels.join(", ")}>`,
   };
 }
 

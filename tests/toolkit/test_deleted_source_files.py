@@ -64,7 +64,8 @@ def test_linters_pylint_survives_a_deleted_source_file(
 ) -> None:
     _committed_repository(tmp_path)
     stub_binary(tmp_path, "pylint", 'exit 0\n')
-    finished = run_check(tmp_path, "linters/pylint")
+    stub_binary(tmp_path, "ruff", 'exit 0\n')
+    finished = run_check(tmp_path, "linters")
 
     assert finished.returncode == 0
     assert "fatal" not in finished.stdout

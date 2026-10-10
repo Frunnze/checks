@@ -1,9 +1,16 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
-from srp_support import CHECK, unit_named, write_split_project
+from srp_support import CHECK, run_project, unit_named, write_split_project
+
+LINK_TARGETS = {
+    "loop": "link.py",
+    "dangling": "missing.py",
+    "directory_named_py": "../elsewhere",
+}
 
 
 @pytest.mark.parametrize("suffix", [".py", ".ts"])
@@ -56,3 +63,19 @@ def test_callers_resolve_with_mixed_absolute_and_relative_files(tmp_path, suffix
     assert result.returncode == 1, result.stderr
     owner = unit_named(json.loads(result.stdout), "<module>.Worker")
     assert owner["coefficient"] == 0.5
+
+
+@pytest.mark.parametrize("link", sorted(LINK_TARGETS))
+def test_directory_scan_skips_symbolic_links_like_find(tmp_path, link):
+    root = tmp_path / "src"
+    root.mkdir()
+    (root / "plain.py").write_text("VALUE = 1\n")
+    (tmp_path / "elsewhere").mkdir()
+    (tmp_path / "elsewhere" / "outside.py").write_text("VALUE = 2\n")
+    (root / "link.py").symlink_to(LINK_TARGETS[link])
+
+    report = run_project(root)
+
+    assert [Path(file["path"]).name for file in report["files"]] == [
+        "plain.py"
+    ]

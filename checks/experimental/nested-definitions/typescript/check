@@ -9,9 +9,10 @@ echo "pre-commit: keep it testable - nothing can reach a def hidden in a def"
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 
-nested_definitions=$(typescript_files_in "$@" \
+findings=$(typescript_files_in "$@" \
     | "$node_binary" "$(dirname "$0")/nested_definitions.js" \
-    "$typescript_module" | reportable_findings)
+    "$typescript_module")
+nested_definitions=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$nested_definitions" \
     "these definitions are nested - lift them out:"

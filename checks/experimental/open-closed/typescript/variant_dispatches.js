@@ -28,7 +28,7 @@ function isFunctionScope(node) {
   );
 }
 
-function stringFrom(node) {
+function literalFrom(node) {
   if (
     typescript.isStringLiteral(node) ||
     typescript.isNoSubstitutionTemplateLiteral(node)
@@ -37,6 +37,33 @@ function stringFrom(node) {
   }
 
   return undefined;
+}
+
+function moduleConstantFrom(identifier, checker) {
+  const declaration =
+    checker.getSymbolAtLocation(identifier)?.valueDeclaration;
+
+  if (declaration === undefined) return undefined;
+  if (!typescript.isVariableDeclaration(declaration)) return undefined;
+  if (declaration.initializer === undefined) return undefined;
+
+  const declarationList = declaration.parent;
+  const statement = declarationList.parent;
+  const isConstant =
+    (declarationList.flags & typescript.NodeFlags.Const) !== 0;
+  const isModuleLevel =
+    typescript.isVariableStatement(statement) &&
+    typescript.isSourceFile(statement.parent);
+
+  if (!isConstant || !isModuleLevel) return undefined;
+
+  return literalFrom(declaration.initializer);
+}
+
+function stringFrom(node, checker) {
+  if (typescript.isIdentifier(node)) return moduleConstantFrom(node, checker);
+
+  return literalFrom(node);
 }
 
 function unwrapped(node) {
@@ -49,7 +76,7 @@ function unwrapped(node) {
   return current;
 }
 
-function comparisonFrom(node) {
+function comparisonFrom(node, checker) {
   if (!typescript.isBinaryExpression(node)) return undefined;
 
   const comparisons = new Set([
@@ -61,8 +88,8 @@ function comparisonFrom(node) {
 
   if (!comparisons.has(node.operatorToken.kind)) return undefined;
 
-  const leftString = stringFrom(node.left);
-  const rightString = stringFrom(node.right);
+  const leftString = stringFrom(node.left, checker);
+  const rightString = stringFrom(node.right, checker);
 
   if (leftString !== undefined && rightString === undefined) {
     return { subject: unwrapped(node.right), variant: leftString };
@@ -74,7 +101,7 @@ function comparisonFrom(node) {
   return undefined;
 }
 
-function membershipFrom(node) {
+function membershipFrom(node, checker) {
   if (!typescript.isCallExpression(node)) return undefined;
   if (node.arguments.length !== 1) return undefined;
 
@@ -87,7 +114,9 @@ function membershipFrom(node) {
 
   if (!typescript.isArrayLiteralExpression(array)) return undefined;
 
-  const variants = array.elements.map(stringFrom);
+  const variants = array.elements.map((element) =>
+    stringFrom(element, checker),
+  );
 
   if (variants.length === 0) return undefined;
   if (variants.some((variant) => variant === undefined)) return undefined;
@@ -104,7 +133,7 @@ function record(groups, sourceFile, subject, variant) {
   groups.set(display, group);
 }
 
-function collectFrom(sourceFile, root) {
+function collectFrom(sourceFile, root, checker) {
   const groups = new Map();
 
   function visit(node) {
@@ -117,13 +146,13 @@ function collectFrom(sourceFile, root) {
       return;
     }
 
-    const comparison = comparisonFrom(node);
+    const comparison = comparisonFrom(node, checker);
 
     if (comparison !== undefined) {
       record(groups, sourceFile, comparison.subject, comparison.variant);
     }
 
-    const membership = membershipFrom(node);
+    const membership = membershipFrom(node, checker);
 
     if (membership !== undefined) {
       for (const variant of membership.variants) {
@@ -135,7 +164,7 @@ function collectFrom(sourceFile, root) {
       for (const clause of node.caseBlock.clauses) {
         if (!typescript.isCaseClause(clause)) continue;
 
-        const variant = stringFrom(clause.expression);
+        const variant = stringFrom(clause.expression, checker);
 
         if (variant !== undefined) {
           record(groups, sourceFile, unwrapped(node.expression), variant);
@@ -179,12 +208,14 @@ function reportFor(sourceFile, scope, subject, variants) {
   );
 }
 
-function dispatchSitesIn(sourceFile) {
+function dispatchSitesIn(sourceFile, checker) {
   const found = [];
 
   function visit(node) {
     if (isFunctionScope(node)) {
-      for (const [display, group] of collectFrom(sourceFile, node)) {
+      const groups = collectFrom(sourceFile, node, checker);
+
+      for (const [display, group] of groups) {
         found.push({
           sourceFile,
           scope: node,
@@ -232,7 +263,7 @@ function programFor(paths) {
   });
 }
 
-const paths = fs.readFileSync(0, "utf8").split(/\s+/).filter(Boolean);
+const paths = fs.readFileSync(0, "utf8").split("\n").filter(Boolean);
 displayPaths = new Map(paths.map((filePath) => [path.resolve(filePath), filePath]));
 const rootPaths = [...displayPaths.keys()];
 const program = programFor(rootPaths);
@@ -241,7 +272,9 @@ const sourceFiles = program
   .getSourceFiles()
   .filter((sourceFile) => pathSet.has(path.resolve(sourceFile.fileName)));
 const checker = program.getTypeChecker();
-const sites = sourceFiles.flatMap(dispatchSitesIn);
+const sites = sourceFiles.flatMap((sourceFile) =>
+  dispatchSitesIn(sourceFile, checker),
+);
 const reported = [
   ...localReports(sites),
   ...scatteredReports({
@@ -260,6 +293,8 @@ const reported = [
   }),
   ...factoryReports({
     typescript,
+    program,
+    checker,
     sourceFiles,
     displayPathFor,
   }),

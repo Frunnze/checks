@@ -1,24 +1,21 @@
-const path = require("path");
 const {
+  featureSegmentsOf,
   importsIn,
   readPathsFromStandardInput,
   resolveImport,
-  sourceRootOf,
 } = require("./module_paths");
 
-const FEATURES_DIRECTORY = "features";
 const FEATURES_PREFIX = "features.";
 
 const typescript = require(process.argv[2]);
-const sourceFolder = process.argv[3];
+const sourceDirectory = process.argv[3];
 
-function featureChainOf(sourceRoot, filePath) {
-  const featuresRoot = path.join(sourceRoot, FEATURES_DIRECTORY);
-  const relative = path.relative(featuresRoot, path.resolve(filePath));
+function featureChainOf(filePath) {
+  const segments = featureSegmentsOf(sourceDirectory, filePath);
 
-  if (relative.startsWith("..") || relative === "") return null;
+  if (segments === null) return null;
 
-  return relative.split(path.sep).slice(0, -1);
+  return segments.slice(0, -1);
 }
 
 function isPrefix(shorter, longer) {
@@ -47,18 +44,14 @@ function crossingBetween(importer, imported) {
 }
 
 function crossingsIn(filePath) {
-  const sourceRoot = sourceRootOf(filePath, sourceFolder);
-
-  if (sourceRoot === null) return [];
-
-  const importerChain = featureChainOf(sourceRoot, filePath);
+  const importerChain = featureChainOf(filePath);
 
   if (importerChain === null || importerChain.length === 0) return [];
 
-  return crossedImportsIn(filePath, sourceRoot, importerChain);
+  return crossedImportsIn(filePath, importerChain);
 }
 
-function crossedImportsIn(filePath, sourceRoot, importerChain) {
+function crossedImportsIn(filePath, importerChain) {
   const found = [];
 
   for (const reference of importsIn(typescript, filePath)) {
@@ -66,7 +59,7 @@ function crossedImportsIn(filePath, sourceRoot, importerChain) {
 
     if (resolved === null) continue;
 
-    const importedChain = featureChainOf(sourceRoot, resolved);
+    const importedChain = featureChainOf(resolved);
 
     if (importedChain === null) continue;
 

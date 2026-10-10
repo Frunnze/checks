@@ -1,12 +1,31 @@
+import keyword
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from check_support import HYPOTHESIS_SETTINGS
+
 _CHECKS = Path(__file__).resolve().parents[2] / "checks"
 _CHECKER = _CHECKS / "experimental" / "feature-isolation" / "python" / "shared_usage.py"
+_NAMES = st.from_regex(r"[a-z]{3,8}", fullmatch=True).filter(
+    lambda name: not keyword.iskeyword(name)
+)
+_FEATURE_NAMES = st.lists(_NAMES, min_size=1, max_size=3, unique=True)
+_CANONICAL_SPELLING = "from shared.{module} import now\n"
+_SPELLINGS = (
+    "import shared.{module}\n",
+    "import shared.{module} as {module}_alias\n",
+    "from shared import {module}\n",
+)
 
 
-def _report_for(tmp_path: Path, files: dict[str, str]) -> list[str]:
+def _report_for(
+    tmp_path: Path, files: dict[str, str], source_directory: str = "src"
+) -> list[str]:
     written: list[str] = []
 
     for relative, source in files.items():
@@ -16,7 +35,7 @@ def _report_for(tmp_path: Path, files: dict[str, str]) -> list[str]:
         written.append(relative)
 
     finished = subprocess.run(
-        [sys.executable, str(_CHECKER), "src"],
+        [sys.executable, str(_CHECKER), source_directory],
         input="\n".join(written),
         capture_output=True,
         text=True,
@@ -132,3 +151,96 @@ def test_reads_a_package_through_its_init(tmp_path: Path) -> None:
     }
 
     assert _report_for(tmp_path, files) == []
+
+
+def _shared_tree(
+    features: list[str], module: str, spelling: str
+) -> dict[str, str]:
+    files = {f"src/shared/{module}.py": "def now():\n    return 1\n"}
+
+    for feature in features:
+        files[f"src/features/{feature}/router.py"] = spelling.format(
+            module=module
+        )
+
+    return files
+
+
+def test_reads_a_path_with_a_space(tmp_path: Path) -> None:
+    files = {
+        "src/shared/my clock.py": "def now():\n    return 1\n",
+        "src/features/notes/router.py": "import uuid\n",
+    }
+    report = _report_for(tmp_path, files)
+
+    assert report == ["src/shared/my clock.py: no feature imports it"]
+
+
+@pytest.mark.parametrize("spelling", _SPELLINGS)
+@HYPOTHESIS_SETTINGS
+@given(features=_FEATURE_NAMES, module=_NAMES)
+def test_shared_usage_property_ignores_the_import_spelling(
+    tmp_path: Path, spelling: str, features: list[str], module: str
+) -> None:
+    canonical = _shared_tree(features, module, _CANONICAL_SPELLING)
+    variant = _shared_tree(features, module, spelling)
+
+    assert _report_for(tmp_path, variant) == _report_for(tmp_path, canonical)
+
+
+@HYPOTHESIS_SETTINGS
+@given(features=_FEATURE_NAMES, module=_NAMES)
+def test_shared_usage_property_an_empty_package_marker_adds_nothing(
+    tmp_path: Path, features: list[str], module: str
+) -> None:
+    without_marker = _shared_tree(features, module, _CANONICAL_SPELLING)
+    with_marker = {**without_marker, "src/shared/__init__.py": ""}
+
+    assert _report_for(tmp_path, with_marker) == _report_for(
+        tmp_path, without_marker
+    )
+
+
+def test_reads_a_source_folder_named_like_its_service(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "app/app/shared/clock.py": "def now():\n    return 1\n",
+        "app/app/features/notes/router.py": "from shared.clock import now\n",
+    }
+    report = _report_for(tmp_path, files, "app/app")
+
+    assert report == ["app/app/shared/clock.py: only notes imports it"]
+
+
+def test_a_features_folder_inside_shared_is_not_a_feature(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/shared/clock.py": "def now():\n    return 1\n",
+        "src/shared/features/toggles.py": "from shared.clock import now\n",
+        "src/features/notes/router.py": (
+            "from shared.features.toggles import on\n"
+        ),
+    }
+    report = _report_for(tmp_path, files)
+
+    assert report == ["src/shared/features/toggles.py: only notes imports it"]
+
+
+def test_a_package_init_counts_every_import_from_its_package(
+    tmp_path: Path,
+) -> None:
+    columns = "from shared.models.columns import column\n"
+    clock = "from shared.clock import now\n"
+    files = {
+        "src/shared/models/__init__.py": "",
+        "src/shared/models/columns.py": "def column():\n    return 1\n",
+        "src/shared/clock.py": "def now():\n    return 1\n",
+        "src/features/notes/router.py": columns + clock,
+        "src/features/tasks/router.py": columns,
+    }
+
+    assert _report_for(tmp_path, files) == [
+        "src/shared/clock.py: only notes imports it"
+    ]

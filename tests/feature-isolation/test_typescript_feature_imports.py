@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from typescript_finder_support import CHECKS, report_from
 
 _FINDER = CHECKS / "experimental" / "feature-isolation" / "typescript" / "feature_imports.js"
@@ -92,3 +94,52 @@ def test_reports_the_line_the_crossing_is_on(tmp_path: Path) -> None:
     assert _report_for(tmp_path, files) == [
         f"{_IMPORTER}:3: features.chatbot"
     ]
+
+
+def test_flags_an_import_from_a_path_with_a_space(tmp_path: Path) -> None:
+    importer = "src/features/billing/pay ment.ts"
+    files = {
+        "src/features/cart/api.ts": "export const value = 1;\n",
+        importer: 'import { value } from "../cart/api";\n',
+    }
+
+    assert _report_for(tmp_path, files) == [f"{importer}:1: features.cart"]
+
+
+def test_flags_an_import_from_a_folder_named_like_the_source_folder(
+    tmp_path: Path,
+) -> None:
+    importer = "src/features/billing/src/pay.ts"
+    files = {
+        "src/features/cart/api.ts": "export const value = 1;\n",
+        importer: 'import { value } from "../../cart/api";\n',
+    }
+
+    assert _report_for(tmp_path, files) == [f"{importer}:1: features.cart"]
+
+
+def test_flags_an_import_of_a_sibling_declaration_file(
+    tmp_path: Path,
+) -> None:
+    importer = "src/features/billing/uses_line.ts"
+    files = {
+        "src/features/cart/line.d.ts": "export interface Line {}\n",
+        importer: 'import type { Line } from "../cart/line";\n',
+    }
+
+    assert _report_for(tmp_path, files) == [f"{importer}:1: features.cart"]
+
+
+@pytest.mark.parametrize(
+    ("emitted", "source"), [(".mjs", ".mts"), (".cjs", ".cts")]
+)
+def test_flags_an_import_spelled_with_the_emitted_extension(
+    tmp_path: Path, emitted: str, source: str
+) -> None:
+    importer = f"src/features/billing/pay{source}"
+    files = {
+        f"src/features/cart/api{source}": "export const value = 1;\n",
+        importer: f'import {{ value }} from "../cart/api{emitted}";\n',
+    }
+
+    assert _report_for(tmp_path, files) == [f"{importer}:1: features.cart"]

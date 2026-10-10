@@ -7,11 +7,12 @@ echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
 
 require_binary "$php_binary" php
 
-untested=$(for source_directory in "$@"; do
+findings=$(for source_directory in "$@"; do
     php_files_in $(sources_and_tests "$source_directory") \
         | "$php_binary" "$(dirname "$0")/property_test_coverage.php" \
         "$source_directory"
-done | reportable_findings)
+done)
+untested=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$untested" \
     "assert a guarantee over generated input (\$this->forAll) - a" \

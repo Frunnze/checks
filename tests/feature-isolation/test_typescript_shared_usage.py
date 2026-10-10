@@ -86,3 +86,19 @@ def test_counts_a_nested_feature_under_its_own_feature(
     assert _report_for(tmp_path, files) == [
         f"{_SHARED}: only folder imports it"
     ]
+
+
+def test_allows_a_declaration_file_two_features_import(
+    tmp_path: Path,
+) -> None:
+    files = {
+        "src/shared/money.d.ts": "export interface Money { cents: number }\n",
+        "src/features/cart/view.ts": (
+            'import type { Money } from "../../shared/money";\n'
+        ),
+        "src/features/billing/view.ts": (
+            'import type { Money } from "../../shared/money";\n'
+        ),
+    }
+
+    assert _report_for(tmp_path, files) == []

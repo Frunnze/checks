@@ -47,11 +47,11 @@ def collect_scope(
             if isinstance(child, FUNCTIONS)
             and child.name not in replaced_names
         )
-    visible = {
-        key: value
-        for key, value in visible.items()
-        if key not in replaced_names
-    }
+        visible = {
+            key: value
+            for key, value in visible.items()
+            if key not in replaced_names
+        }
     member_names = {
         scope_name(child)
         for child in scopes
@@ -59,7 +59,9 @@ def collect_scope(
         and scope_name(child) not in replaced_names
     }
     fields = (
-        class_fields(node, inherited) if isinstance(node, ast.ClassDef) else {}
+        class_fields(node, local_bindings(node, inherited))
+        if isinstance(node, ast.ClassDef)
+        else {}
     )
     for child in scopes:
         name = f"{owner}.{scope_name(child)}"
@@ -154,9 +156,14 @@ def collect_scope(
             for statement in body:
                 collector.statement(statement)
             facts.append(collector.finish())
-        collect_scope(
-            child, name, bindings, globals_, facts, owners, available
-        )
+        if isinstance(child, ast.ClassDef):
+            collect_scope(
+                child, name, inherited, globals_, facts, owners, visible
+            )
+        else:
+            collect_scope(
+                child, name, bindings, globals_, facts, owners, available
+            )
 
 
 def python_facts(

@@ -13,11 +13,15 @@ source_files=$(
     typescript_files_in $sources
     php_files_in $sources
 )
+checked_files=$(printf '%s\n' "$source_files" | without_whitelisted)
 
-overlong_files=$(echo "$source_files" | grep . | while read -r source_file; do
-    awk -v limit="$maximum_lines" -v name="$source_file" \
-        'END {if (NR > limit) print name " (" NR " lines)"}' \
-        "$source_file"
-done | reportable_findings)
+overlong_files=$(printf '%s\n' "$checked_files" | grep -a . \
+    | while IFS= read -r source_file; do
+        line_count=$(awk 'END {print NR}' < "$source_file")
+
+        if [ "$line_count" -gt "$maximum_lines" ]; then
+            printf '%s (%s lines)\n' "$source_file" "$line_count"
+        fi
+    done | within_scope)
 
 fail_on_findings "$overlong_files" "over $maximum_lines lines:"

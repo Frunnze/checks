@@ -33,6 +33,7 @@ NESTING = (
     ast.Match,
     ast.IfExp,
 )
+Comprehension = ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp
 
 
 class RuntimeMetrics:
@@ -129,6 +130,14 @@ class RuntimeMetrics:
                 self.references.add(resolved)
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
             self.locals.add(node.id)
+        if isinstance(node, Comprehension):
+            self.visit_comprehension_scope(node, depth)
+        else:
+            self.visit_children(node, depth)
+        # The right-hand side still reads the binding being replaced.
+        bind_assignment(node, self.bindings)
+
+    def visit_children(self, node: ast.AST, depth: int) -> None:
         # Annotations and decorators are declarations, not method behavior.
         for field, value in ast.iter_fields(node):
             if field in {"annotation", "returns", "type_comment"}:
@@ -137,8 +146,18 @@ class RuntimeMetrics:
             for child in children:
                 if isinstance(child, ast.AST):
                     self.visit(child, depth)
-        # The right-hand side still reads the binding being replaced.
-        bind_assignment(node, self.bindings)
+
+    def visit_comprehension_scope(
+        self, node: Comprehension, depth: int
+    ) -> None:
+        enclosing = dict(self.bindings)
+        for generator in node.generators:
+            for target in ast.walk(generator.target):
+                if isinstance(target, ast.Name):
+                    self.bindings[target.id] = "local:" + target.id
+        self.visit_children(node, depth)
+        self.bindings.clear()
+        self.bindings.update(enclosing)
 
     def record_call(self, node: ast.Call) -> None:
         call = qualified(node.func, self.bindings)

@@ -5,7 +5,6 @@ from typing import NamedTuple
 
 FEATURES_PACKAGE = "features"
 FEATURES_PREFIX = f"{FEATURES_PACKAGE}."
-ESCAPING_LEVEL = 2
 
 PackageChain = tuple[str, ...]
 
@@ -22,22 +21,16 @@ class FeatureLocation(NamedTuple):
 
 
 class FeatureRoot:
-    def __init__(self, source_folder: str) -> None:
-        self._features_directory = (source_folder, FEATURES_PACKAGE)
+    def __init__(self, source_directory: Path) -> None:
+        self._features_directory = source_directory / FEATURES_PACKAGE
 
     def of(self, path: Path) -> FeatureLocation | None:
-        parts = path.parts
-        depth = len(self._features_directory)
+        if not path.is_relative_to(self._features_directory):
+            return None
 
-        for index in range(len(parts) - depth):
-            if parts[index : index + depth] != self._features_directory:
-                continue
+        inside = path.relative_to(self._features_directory).parts
 
-            root = Path(*parts[: index + depth])
-
-            return FeatureLocation(root, parts[index + depth : -1])
-
-        return None
+        return FeatureLocation(self._features_directory, inside[:-1])
 
 
 class FeatureSegments:
@@ -49,6 +42,23 @@ class FeatureSegments:
             return module[len(FEATURES_PREFIX) :].split(".")
 
         return None
+
+
+class RelativeSegments:
+    def of(
+        self, node: ast.ImportFrom, package: PackageChain
+    ) -> list[str] | None:
+        climbed = node.level - 1
+
+        if climbed > len(package):
+            return None
+
+        segments = list(package[: len(package) - climbed])
+
+        if node.module is not None:
+            segments.extend(node.module.split("."))
+
+        return segments
 
 
 class ImportedChain:
@@ -105,6 +115,7 @@ class CrossedFeature:
     def __init__(self, location: FeatureLocation) -> None:
         self.location: FeatureLocation = location
         self.segments: FeatureSegments = FeatureSegments()
+        self.relative: RelativeSegments = RelativeSegments()
         self.chain_of: ImportedChain = ImportedChain()
         self.crossing: SiblingCrossing = SiblingCrossing()
 
@@ -115,10 +126,10 @@ class CrossedFeature:
         return self._by_plain_import(node)
 
     def _by_from_import(self, node: ast.ImportFrom) -> list[str]:
-        if node.level >= ESCAPING_LEVEL:
-            return ["." * node.level + (node.module or "")]
+        if node.level:
+            return self._by_relative_import(node)
 
-        if node.level or node.module is None:
+        if node.module is None:
             return []
 
         base = self.segments.of(node.module)
@@ -126,9 +137,24 @@ class CrossedFeature:
         if base is None:
             return []
 
-        return self._crossings(
-            [base + [alias.name] for alias in node.names]
-        )
+        return self._crossings(self._named_under(base, node))
+
+    def _by_relative_import(self, node: ast.ImportFrom) -> list[str]:
+        spelled = "." * node.level + (node.module or "")
+        base = self.relative.of(node, self.location.chain)
+
+        if base is None:
+            return [spelled]
+
+        if self._crossings(self._named_under(base, node)):
+            return [spelled]
+
+        return []
+
+    def _named_under(
+        self, base: list[str], node: ast.ImportFrom
+    ) -> list[list[str]]:
+        return [base + [alias.name] for alias in node.names]
 
     def _by_plain_import(self, node: ast.Import) -> list[str]:
         reached: list[list[str]] = []
@@ -155,8 +181,8 @@ class CrossedFeature:
 
 
 class CrossFeatureImports:
-    def __init__(self, source_folder: str) -> None:
-        self._source_folder = source_folder
+    def __init__(self, source_directory: Path) -> None:
+        self._source_directory = source_directory
 
     def find_in(self, paths: list[str]) -> list[CrossFeatureImport]:
         found: set[CrossFeatureImport] = set()
@@ -167,12 +193,12 @@ class CrossFeatureImports:
         return sorted(found)
 
     def _find_in_file(self, path: Path) -> list[CrossFeatureImport]:
-        location = FeatureRoot(self._source_folder).of(path)
+        location = FeatureRoot(self._source_directory).of(path)
 
         if location is None or not location.chain:
             return []
 
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(path.read_bytes(), filename=str(path))
 
         return self._crossings_in(tree, path, CrossedFeature(location))
 
@@ -193,10 +219,10 @@ class CrossFeatureImports:
         return found
 
 
-source_folder = sys.argv[1]
-source_paths = sys.stdin.read().split()
+source_directory = Path(sys.argv[1])
+source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
-for crossing in CrossFeatureImports(source_folder).find_in(source_paths):
+for crossing in CrossFeatureImports(source_directory).find_in(source_paths):
     _ = sys.stdout.write(
         f"{crossing.path}:{crossing.line_number}: {crossing.imported}\n"
     )

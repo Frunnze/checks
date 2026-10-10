@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from property_coverage_support import missing, report_for
 
 
@@ -43,6 +45,15 @@ def test_says_nothing_about_a_body_that_only_passes(
     source = "def not_written_yet():\n    pass\n"
 
     assert report_for(tmp_path, source, "") == []
+
+
+@pytest.mark.parametrize("placeholder", ("...", "pass"))
+def test_flags_a_placeholder_followed_by_real_code(
+    tmp_path: Path, placeholder: str
+) -> None:
+    source = f"def grow(value):\n    {placeholder}\n    return value + 1\n"
+
+    assert report_for(tmp_path, source, "") == [missing("grow", 1)]
 
 
 def test_still_flags_a_plain_function_beside_the_exempt_ones(

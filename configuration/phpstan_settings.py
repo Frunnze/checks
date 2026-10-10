@@ -29,13 +29,17 @@ def php_version_of(package: Path) -> int | None:
         "composer.json require", manifest_table.get("require", {})
     )
     php_requirement = str(requirements.get("php", ""))
-    version_match = PHP_REQUIREMENT.search(php_requirement)
+    versions: list[tuple[int, int]] = []
 
-    if version_match is None:
+    for version_match in PHP_REQUIREMENT.finditer(php_requirement):
+        major = int(version_match.group(1))
+        minor = int(version_match.group(2))
+        versions.append((major, minor))
+
+    if not versions:
         return None
 
-    major_version = int(version_match.group(1))
-    minor_version = int(version_match.group(2))
+    major_version, minor_version = min(versions)
 
     return (
         major_version * MAJOR_VERSION_FACTOR

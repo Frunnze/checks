@@ -27,8 +27,8 @@ def source_paths(inputs: list[str]) -> list[Path]:
             for directory, subdirs, files in path.walk(on_error=raise_walk_error):
                 subdirs[:] = [name for name in subdirs if name not in PRUNED]
                 for name in files:
-                    if Path(name).suffix in SUFFIXES:
-                        source = directory / name
+                    source = directory / name
+                    if source.suffix in SUFFIXES and not source.is_symlink():
                         paths.setdefault(source.resolve(), source)
     return sorted(paths.values())
 

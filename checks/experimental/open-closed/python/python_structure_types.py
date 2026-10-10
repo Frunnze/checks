@@ -36,13 +36,13 @@ class Module:
     constants: dict[str, str]
 
 
+def parsed_module(path: str) -> ast.Module:
+    return ast.parse(Path(path).read_bytes(), filename=path)
+
+
 def modules_from(paths: list[str]) -> list[Module]:
     return [
-        Module(
-            path,
-            tree := ast.parse(Path(path).read_text(encoding="utf-8")),
-            string_constants(tree),
-        )
+        Module(path, tree := parsed_module(path), string_constants(tree))
         for path in paths
     ]
 
@@ -63,7 +63,7 @@ def axes_in(modules: list[Module]) -> dict[str, list[Axis]]:
 
     for module in modules:
         for node in module.tree.body:
-            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            if isinstance(node, (ast.Assign, ast.AnnAssign, ast.TypeAlias)):
                 name = assigned_name(node)
                 value = node.value
 

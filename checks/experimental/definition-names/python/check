@@ -2,15 +2,16 @@
 set -e
 . "$toolkit/tools.sh"
 
-joined_function='(async[[:space:]]+)?def[[:space:]]+[A-Za-z0-9_]*_(and|or)_'
+joined_words='[A-Za-z0-9_]*[A-Za-z0-9]_(and|or)_'
+joined_function="(async[[:space:]]+)?def[[:space:]]+$joined_words"
 joined_class='class[[:space:]]+[A-Za-z0-9_]*(And|Or)[A-Z]'
 joined_definition="^[[:space:]]*($joined_function|$joined_class)"
 
 echo "pre-commit: definition names in python (one responsibility per name)"
 echo "pre-commit: follow SRP - split a name that says 'and'/'or'"
 
-joined_names=$(python_files_in "$@" | while read -r source_file; do
-    grep -nHE "$joined_definition" "$source_file" || true
+joined_names=$(python_files_in "$@" | while IFS= read -r source_file; do
+    grep -anHE "$joined_definition" "$source_file" || true
 done | reportable_findings)
 
 fail_on_findings "$joined_names" \

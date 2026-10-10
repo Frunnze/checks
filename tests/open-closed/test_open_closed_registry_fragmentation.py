@@ -23,6 +23,8 @@ Concrete inputs -> expected outputs:
   output: expected a report, got [].
 """
 
+import random
+
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
@@ -36,6 +38,12 @@ from open_closed_finder_support import (
 
 _VARIANTS = ["deck", "file", "note"]
 _EXTRA = "wide"
+_KEYS = ["aaa", "bbb", "ccc", "ddd", "eee"]
+_KEY_DOMAINS = st.lists(
+    st.sampled_from(_KEYS), min_size=2, max_size=5, unique=True
+).map(sorted)
+_LITERAL_IMPORT = "from typing import Literal\n"
+_SWAPPING_SEED = 6
 
 
 @st.composite
@@ -94,3 +102,71 @@ def test_fragmented_registry_property_survives_extra_variant_everywhere(
     )
 
     assert not aligned or grown
+
+
+def _literal(domain: list[str]) -> str:
+    return f"Literal[{', '.join(repr(key) for key in domain)}]"
+
+
+def _registry(name: str, domain: list[str], annotation: str) -> str:
+    entries = ", ".join(f"{key!r}: len" for key in domain)
+
+    return f"{name}{annotation} = {{{entries}}}\n"
+
+
+@st.composite
+def _module_lines(draw: st.DrawFn) -> tuple[list[str], list[str]]:
+    aliases = draw(st.lists(_KEY_DOMAINS, max_size=2))
+    alias_lines = [
+        f"Axis{index} = {_literal(domain)}\n"
+        for index, domain in enumerate(aliases)
+    ]
+    styles = ["plain", "inline", "alias"] if aliases else ["plain", "inline"]
+    registries: list[str] = []
+
+    for index in range(draw(st.integers(2, 5))):
+        domain = draw(_KEY_DOMAINS)
+        style = draw(st.sampled_from(styles))
+        annotation = ""
+
+        if style == "inline":
+            annotation = f": dict[{_literal(domain)}, object]"
+        if style == "alias":
+            alias_index = draw(st.integers(0, len(aliases) - 1))
+            annotation = f": dict[Axis{alias_index}, object]"
+            domain = aliases[alias_index]
+
+        registries.append(_registry(f"REGISTRY_{index}", domain, annotation))
+
+    return alias_lines, registries
+
+
+_WIDE_KEYS = ["aaa", "bbb", "ccc", "ddd"]
+_NARROW_KEYS = ["aaa", "bbb", "ccc"]
+_WIDE_ANNOTATION = f": dict[{_literal(_WIDE_KEYS)}, object]"
+_ORDER_DEPENDENT_MODULE = (
+    [f"Axis0 = {_literal(_NARROW_KEYS)}\n"],
+    [
+        _registry("REGISTRY_0", _WIDE_KEYS, _WIDE_ANNOTATION),
+        _registry("REGISTRY_1", _WIDE_KEYS, ""),
+        _registry("REGISTRY_2", _NARROW_KEYS, ""),
+    ],
+)
+
+
+@given(lines=_module_lines(), seed=st.integers(min_value=0, max_value=9999))
+@example(lines=_ORDER_DEPENDENT_MODULE, seed=_SWAPPING_SEED)
+@settings(max_examples=200, deadline=None)
+def test_fragmented_registry_property_ignores_statement_order(
+    lines: tuple[list[str], list[str]], seed: int
+) -> None:
+    aliases, registries = lines
+    shuffled = list(registries)
+    random.Random(seed).shuffle(shuffled)
+    header = _LITERAL_IMPORT + "".join(aliases)
+    in_order = findings_for({"m.py": header + "".join(registries)})
+    reordered = findings_for({"m.py": header + "".join(shuffled)})
+
+    assert sorted(line.split(": ", 1)[1] for line in reordered) == sorted(
+        line.split(": ", 1)[1] for line in in_order
+    )

@@ -25,9 +25,7 @@ from settings_validation import CHECK_ORDER, validate_configuration
 CHECKS = TOOLKIT / "checks"
 MINIMAL = 'source_directories = ["src"]\n'
 
-directory_names = st.text(
-    alphabet="abcdefghijklmnopqrstuvwxyz-", min_size=1, max_size=12
-)
+directory_names = st.from_regex(r"[a-z][a-z-]{0,11}", fullmatch=True)
 whitelist_entries = st.lists(
     st.text(alphabet="abcdefghijklmnopqrstuvwxyz/._:-", min_size=1),
     max_size=5,
@@ -77,6 +75,27 @@ def test_a_check_section_overrides_the_global_folders(tmp_path: Path) -> None:
         (MINIMAL + "[checks.file-length]\nmax-lines = 0\n", "max-lines"),
         (MINIMAL + "[checks.coverage]\nfail-under = 101\n", "fail-under"),
         (MINIMAL + 'stable = "always"\n', "stable"),
+        ('source_directories = [""]\n', "empty folder name"),
+        ('source_directories = ["svc/src/"]\n', "write svc/src/ as svc/src"),
+        ('source_directories = ["./svc/src"]\n', "write ./svc/src as"),
+        ('source_directories = ["my svc/src"]\n', "not supported"),
+        ('source_directories = ["src[1]"]\n', "not supported"),
+        ('source_directories = ["-svc/src"]\n', "not supported"),
+        ('source_directories = ["../svc/src"]\n', "inside the repository"),
+        ('source_directories = ["/svc/src"]\n', "inside the repository"),
+        (MINIMAL + "stable = []\n", "stable"),
+        (MINIMAL + "[checks.linters]\nwhen = []\n", "when"),
+        (MINIMAL + "[checks.linters]\nscope = {}\n", "scope"),
+        (MINIMAL + "[checks.linters.ruff]\nx = 1979-05-27\n", "dates"),
+        (MINIMAL + "[checks.linters.ruff]\nx = inf\n", "inf and nan"),
+        (
+            MINIMAL
+            + "[checks.single-responsibility]\n"
+            + "whitelist = [{ reviewed = 07:32:00 }]\n",
+            "dates",
+        ),
+        (MINIMAL + "python_environment = 5\n", "python_environment"),
+        (MINIMAL + 'python_environment = ""\n', "python_environment"),
     ],
 )
 def test_rejects_an_invalid_configuration(
@@ -86,6 +105,15 @@ def test_rejects_an_invalid_configuration(
 
     with pytest.raises(ValueError, match=complaint):
         _ = read_configuration(configuration_path)
+
+
+def test_rejects_a_setting_of_an_unknown_check(tmp_path: Path) -> None:
+    configuration_path = written_configuration(tmp_path, MINIMAL)
+
+    finished = read_setting(configuration_path, "checks.file-lenght.scope")
+
+    assert finished.returncode == 1
+    assert "file-lenght is not one of" in finished.stderr
 
 
 def test_prints_whitelist_tables_as_json_lines(tmp_path: Path) -> None:
@@ -214,6 +242,29 @@ def test_setting_lines_property_round_trips_a_tool_table_through_toml(
     parsed_back = tomllib.loads("\n".join(lines))
 
     assert parsed_back.get("lint", {}) == tool_settings
+
+
+@given(
+    st.dictionaries(
+        st.text(min_size=1),
+        st.one_of(st.text(), st.booleans(), st.lists(st.text(), max_size=3)),
+        max_size=5,
+    )
+)
+def test_setting_lines_property_round_trips_tool_text_through_toml(
+    tool_settings: dict[str, object],
+) -> None:
+    configuration = with_defaults(
+        {
+            "source_directories": ["src"],
+            "checks": {"linters": {"ruff": tool_settings}},
+        }
+    )
+
+    lines = setting_lines(configuration, "checks.linters.ruff")
+    parsed_back = tomllib.loads("\n".join(lines))
+
+    assert parsed_back == tool_settings
 
 
 @given(st.integers(min_value=1, max_value=10_000))

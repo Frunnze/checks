@@ -1,8 +1,38 @@
+import codecs
+import keyword
 from pathlib import Path
 
-from property_coverage_support import given_test, missing, report_for
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from check_support import HYPOTHESIS_SETTINGS
+from property_coverage_support import (
+    SOURCE,
+    given_test,
+    missing,
+    missing_in,
+    report_for,
+    report_for_bytes,
+    report_for_files,
+)
 
 _NEXT_REVIEW = "def next_review(card):\n    return card.due\n"
+_IDENTIFIERS = st.from_regex(r"[a-z]{3,8}", fullmatch=True).filter(
+    lambda name: not keyword.iskeyword(name)
+)
+_LATIN1_COOKIE = "# -*- coding: latin-1 -*-\n"
+
+
+def _encoded(source: str, encoding: str) -> bytes:
+    if encoding == "bom":
+        return codecs.BOM_UTF8 + source.encode("utf-8")
+
+    return (_LATIN1_COOKIE + source + "LABEL = 'café'\n").encode("latin-1")
+
+
+def _findings(report: list[str]) -> list[str]:
+    return [line.split(": ", 1)[1] for line in report]
 
 
 def test_flags_a_function_with_no_property_test(tmp_path: Path) -> None:
@@ -76,3 +106,27 @@ def test_says_nothing_about_definitions_in_the_test_file(
     tests = "def helper_for_the_suite():\n    return 1\n"
 
     assert report_for(tmp_path, "", tests) == []
+
+
+def test_reads_a_path_with_a_space(tmp_path: Path) -> None:
+    source = "service/src/my scheduler.py"
+    report = report_for_files(tmp_path, {source: _NEXT_REVIEW})
+
+    assert report == [missing_in(source, "next_review", 1)]
+
+
+@pytest.mark.parametrize("encoding", ("bom", "latin1_cookie"))
+@HYPOTHESIS_SETTINGS
+@given(name=_IDENTIFIERS)
+def test_coverage_property_reads_every_encoding_python_reads(
+    tmp_path: Path, encoding: str, name: str
+) -> None:
+    source = f"def {name}(value):\n    return value + 1\n"
+    plain = report_for_bytes(tmp_path, {str(SOURCE): source.encode("utf-8")})
+    encoded = report_for_bytes(
+        tmp_path, {str(SOURCE): _encoded(source, encoding)}
+    )
+
+    assert _findings(encoded) == _findings(plain) == _findings(
+        [missing(name, 1)]
+    )

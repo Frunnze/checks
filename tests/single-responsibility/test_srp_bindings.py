@@ -1,5 +1,25 @@
 import pytest
+from hypothesis import HealthCheck, example, given, settings
+from hypothesis import strategies as st
 from srp_support import mixed_function, run_report, unit_named
+
+BROWSER_NETWORK_CALLS = {
+    "fetch": "  fetch(url);\n",
+    "window_fetch": "  window.fetch(url);\n",
+    "global_this_fetch": "  globalThis.fetch(url);\n",
+    "web_socket": (
+        "  const socket = new WebSocket(url);\n"
+        '  socket.send("hello");\n'
+    ),
+    "xml_http_request": (
+        "  const request = new XMLHttpRequest();\n"
+        '  request.open("GET", url);\n  request.send();\n'
+    ),
+}
+BROWSER_STORAGE_CALLS = {
+    "local_storage": '  localStorage.setItem("sent", "yes");\n',
+    "session_storage": '  sessionStorage.setItem("sent", "yes");\n',
+}
 
 
 @pytest.mark.parametrize("suffix", [".py", ".ts"])
@@ -136,3 +156,29 @@ def test_module_aliases_are_visible_inside_functions(
     unit = unit_named(run_report(tmp_path, source, suffix), "<module>.work")
 
     assert unit["effect_domains"] == {"network": [operation]}
+
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture],
+    max_examples=15,
+    deadline=None,
+)
+@given(
+    network=st.sampled_from(sorted(BROWSER_NETWORK_CALLS)),
+    storage=st.sampled_from(sorted(BROWSER_STORAGE_CALLS)),
+)
+@example(network="web_socket", storage="local_storage")
+def test_browser_globals_property_reach_their_catalogued_entities(
+    tmp_path_factory, network, storage
+):
+    source = (
+        "export function send(url: string): void {\n"
+        f"{BROWSER_NETWORK_CALLS[network]}{BROWSER_STORAGE_CALLS[storage]}"
+        "}\n"
+    )
+    report = run_report(tmp_path_factory.mktemp("browser"), source, ".ts")
+
+    assert unit_named(report, "<module>.send")["entities"] == [
+        "network",
+        "persistence",
+    ]

@@ -1,10 +1,51 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 from dependency_inversion_support import (
     findings_for,
     repository_module,
     service_owning,
 )
+from open_closed_finder_support import written_paths
+from typescript_finder_support import CHECKS
 
 _REPOSITORY = repository_module()
+_FINDER = (
+    CHECKS
+    / "experimental"
+    / "dependency-inversion"
+    / "python"
+    / "constructed_collaborators.py"
+)
+_SHARED_FINDERS = CHECKS / "experimental" / "open-closed" / "python"
+
+
+def test_reads_one_path_per_input_line(tmp_path: Path) -> None:
+    modules = {
+        "my folder/repository.py": _REPOSITORY,
+        "tab\tfolder/service.py": service_owning(
+            "UnitService", ["SqlUnitRepository"]
+        ),
+    }
+    _ = written_paths(tmp_path, modules)
+    finished = subprocess.run(
+        [sys.executable, str(_FINDER)],
+        input="".join(f"{relative}\n" for relative in modules),
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(_SHARED_FINDERS)},
+    )
+
+    assert finished.stdout.splitlines() == [
+        (
+            "tab\tfolder/service.py:2: UnitService constructs its own "
+            "collaborators instead of receiving them: SqlUnitRepository"
+        )
+    ]
 
 
 def test_flags_a_service_constructing_its_repository() -> None:
