@@ -10,6 +10,8 @@ ROUTE_VERBS = (
     "head",
     "options",
     "websocket",
+    "route",
+    "api_route",
 )
 
 FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
