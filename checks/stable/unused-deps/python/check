@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: python dependencies (declare what you import, drop"
-echo "pre-commit: what you don't)"
+echo "checks: python dependencies (declare what you import, drop"
+echo "checks: what you don't)"
 
 require_binary "$python_tools/deptry" deptry
 
@@ -15,10 +15,10 @@ for source_directory in "$@"; do
     if ! (cd "$package" && PYTHONPATH="$installed_packages" \
         "$python_tools/deptry" "$(basename "$source_directory")" \
         --experimental-namespace-package); then
-        echo "pre-commit: the declared dependencies of $package" >&2
-        echo "pre-commit: disagree with its imports - drop the unused," >&2
-        echo "pre-commit: declare the imported, or configure" >&2
-        echo "pre-commit: [tool.deptry] in $package/pyproject.toml" >&2
+        echo "checks: the declared dependencies of $package" >&2
+        echo "checks: disagree with its imports - drop the unused," >&2
+        echo "checks: declare the imported, or configure" >&2
+        echo "checks: [tool.deptry] in $package/pyproject.toml" >&2
         exit 1
     fi
 done

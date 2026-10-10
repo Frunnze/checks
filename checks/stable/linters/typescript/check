@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: linters in typescript (eslint strictTypeChecked)"
-echo "pre-commit: write for the reader - code is read far more than written"
+echo "checks: linters in typescript (eslint strictTypeChecked)"
+echo "checks: write for the reader - code is read far more than written"
 
 require_binary "$node_tools/eslint" eslint
 
@@ -31,7 +31,7 @@ for source_directory in "$@"; do
     require_node_modules "$package"
 
     if ! lint_package "$source_directory"; then
-        echo "pre-commit: eslint rejected $package" >&2
+        echo "checks: eslint rejected $package" >&2
         exit 1
     fi
 done

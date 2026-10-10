@@ -110,7 +110,7 @@ def analyze(
 
 def print_report(report: dict) -> None:
     print(
-        f"pre-commit: SRP coefficient={report['coefficient']:.12f} "
+        f"checks: SRP coefficient={report['coefficient']:.12f} "
         f"threshold={THRESHOLD} files={len(report['files'])} "
         f"whitelisted={report['whitelisted_count']}"
     )
@@ -127,7 +127,7 @@ def print_report(report: dict) -> None:
             )
     if report["failed"]:
         print(
-            "pre-commit: follow SRP - a unit that reaches two or more "
+            "checks: follow SRP - a unit that reaches two or more "
             "external entities has two or more reasons to change. Agent: "
             "first identify whether each finding is a real SRP violation. "
             "Split only the real violations. If a finding is not one, never "
@@ -179,13 +179,13 @@ def main() -> int:
         )
     except SyntaxError as error:
         print(
-            f"pre-commit: SRP analysis error: {error.filename}:"
+            f"checks: SRP analysis error: {error.filename}:"
             f"{error.lineno}: {error.msg}",
             file=sys.stderr,
         )
         return 2
     except (OSError, ValueError) as error:
-        print(f"pre-commit: SRP analysis error: {error}", file=sys.stderr)
+        print(f"checks: SRP analysis error: {error}", file=sys.stderr)
         return 2
     if args.json:
         print(json.dumps(report, sort_keys=True))

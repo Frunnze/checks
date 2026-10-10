@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: python dependencies (no known vulnerability)"
-echo "pre-commit: stay secure by default - upgrade rather than accept it"
+echo "checks: python dependencies (no known vulnerability)"
+echo "checks: stay secure by default - upgrade rather than accept it"
 
 require_binary "$python_tools/pip-audit" pip-audit
 
@@ -21,19 +21,19 @@ if audit_output=$("$python_tools/pip-audit" "$@" 2>&1); then
 fi
 
 if echo "$audit_output" | grep -q "$reported_vulnerability"; then
-    echo "pre-commit: an installed package has a known vulnerability -" >&2
-    echo "pre-commit: upgrade it, or add the advisory id to" >&2
-    echo "pre-commit: [checks.vulnerable-deps] whitelist:" >&2
+    echo "checks: an installed package has a known vulnerability -" >&2
+    echo "checks: upgrade it, or add the advisory id to" >&2
+    echo "checks: [checks.vulnerable-deps] whitelist:" >&2
     echo "$audit_output" >&2
     exit 1
 fi
 
 if echo "$audit_output" | grep -qE "$unreachable_registry"; then
-    echo "pre-commit: advisory database unreachable - skipping the" >&2
-    echo "pre-commit: python vulnerability scan" >&2
+    echo "checks: advisory database unreachable - skipping the" >&2
+    echo "checks: python vulnerability scan" >&2
     exit 0
 fi
 
-echo "pre-commit: pip-audit failed before it could scan:" >&2
+echo "checks: pip-audit failed before it could scan:" >&2
 echo "$audit_output" >&2
 exit 1

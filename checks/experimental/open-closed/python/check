@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: open/closed in python (no growing closed dispatches)"
-echo "pre-commit: follow OCP - extend behaviour without editing its policy"
+echo "checks: open/closed in python (no growing closed dispatches)"
+echo "checks: follow OCP - extend behaviour without editing its policy"
 
 python_files=$(python_files_in "$@")
 source_directories=$(setting "checks.$check_name.source_directories")

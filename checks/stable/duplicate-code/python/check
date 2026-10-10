@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: duplicate code in python (write it once)"
-echo "pre-commit: follow DRY - extract the repeat, do not copy it"
+echo "checks: duplicate code in python (write it once)"
+echo "checks: follow DRY - extract the repeat, do not copy it"
 
 require_binary "$node_tools/jscpd" jscpd
 
@@ -17,8 +17,8 @@ for source_directory in "$@"; do
         --ignore "${ignored_paths:-**/node_modules/**}" \
         --reporters console \
         --silent; then
-        echo "pre-commit: duplicated code in $source_directory - reuse" >&2
-        echo "pre-commit: it, do not copy it" >&2
+        echo "checks: duplicated code in $source_directory - reuse" >&2
+        echo "checks: it, do not copy it" >&2
         exit 1
     fi
 done

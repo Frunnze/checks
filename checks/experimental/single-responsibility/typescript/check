@@ -2,13 +2,13 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: single responsibility in typescript (two or more"
-echo "pre-commit: external entities blocks)"
-echo "pre-commit: Agent: first identify whether each finding is a real"
-echo "pre-commit: SRP violation. Split only the real violations. If a"
-echo "pre-commit: finding is not one, never refactor it - whitelist it: add"
-echo "pre-commit: the exact finding and a reason to the"
-echo "pre-commit: [checks.single-responsibility] whitelist in checks.toml"
+echo "checks: single responsibility in typescript (two or more"
+echo "checks: external entities blocks)"
+echo "checks: Agent: first identify whether each finding is a real"
+echo "checks: SRP violation. Split only the real violations. If a"
+echo "checks: finding is not one, never refactor it - whitelist it: add"
+echo "checks: the exact finding and a reason to the"
+echo "checks: [checks.single-responsibility] whitelist in checks.toml"
 
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript

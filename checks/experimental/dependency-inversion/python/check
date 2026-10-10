@@ -2,7 +2,7 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: dependency inversion in python (depend on abstractions)"
+echo "checks: dependency inversion in python (depend on abstractions)"
 
 shared_finders="$(dirname "$0")/../../open-closed/python"
 

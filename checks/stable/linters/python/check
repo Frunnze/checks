@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: linters in python (ruff, pylint)"
-echo "pre-commit: write for the reader - code is read far more than written"
+echo "checks: linters in python (ruff, pylint)"
+echo "checks: write for the reader - code is read far more than written"
 
 require_binary "$python_tools/ruff" ruff
 require_binary "$python_tools/pylint" pylint
@@ -40,8 +40,8 @@ for source_directory in "$@"; do
     if ! python_files_in "$source_directory" \
         | xargs "$python_tools/pylint" --disable=all \
         --enable="$pylint_rules"; then
-        echo "pre-commit: $source_directory breaks a pylint rule ruff" >&2
-        echo "pre-commit: does not have" >&2
+        echo "checks: $source_directory breaks a pylint rule ruff" >&2
+        echo "checks: does not have" >&2
         exit 1
     fi
 done

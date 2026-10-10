@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: php dependencies (no known vulnerability)"
-echo "pre-commit: stay secure by default - upgrade rather than accept it"
+echo "checks: php dependencies (no known vulnerability)"
+echo "checks: stay secure by default - upgrade rather than accept it"
 
 require_command composer "brew install composer"
 require_binary "$php_binary" php
@@ -19,8 +19,8 @@ for source_directory in "$@"; do
     fi
 
     if echo "$audit_output" | grep -qE "$unreachable_registry"; then
-        echo "pre-commit: advisory database unreachable - skipping the" >&2
-        echo "pre-commit: composer vulnerability scan of $package" >&2
+        echo "checks: advisory database unreachable - skipping the" >&2
+        echo "checks: composer vulnerability scan of $package" >&2
         continue
     fi
 

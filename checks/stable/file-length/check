@@ -4,8 +4,8 @@ set -e
 
 maximum_lines=$(setting checks.file-length.max-lines)
 
-echo "pre-commit: file length (max $maximum_lines lines)"
-echo "pre-commit: follow SRP - split a file that grew past one job"
+echo "checks: file length (max $maximum_lines lines)"
+echo "checks: follow SRP - split a file that grew past one job"
 
 source_files=$(
     sources=$(sources_and_tests "$@")

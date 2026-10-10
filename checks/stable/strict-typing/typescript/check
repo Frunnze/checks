@@ -2,9 +2,9 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: strict typing in typescript (tsc)"
-echo "pre-commit: type it strictly - an illegal state must fail to compile"
-echo "pre-commit: never silence the checker - fix the type instead"
+echo "checks: strict typing in typescript (tsc)"
+echo "checks: type it strictly - an illegal state must fail to compile"
+echo "checks: never silence the checker - fix the type instead"
 
 require_binary "$node_tools/tsc" typescript
 
@@ -19,7 +19,7 @@ for source_directory in "$@"; do
     require_node_modules "$package"
 
     if ! "$node_tools/tsc" --noEmit -p "$package/tsconfig.json"; then
-        echo "pre-commit: $package does not type-check" >&2
+        echo "checks: $package does not type-check" >&2
         exit 1
     fi
 done

@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: typescript dependencies (no known vulnerability)"
-echo "pre-commit: stay secure by default - upgrade rather than accept it"
+echo "checks: typescript dependencies (no known vulnerability)"
+echo "checks: stay secure by default - upgrade rather than accept it"
 
 require_binary "$node_binary" node
 
@@ -29,12 +29,12 @@ for source_directory in "$@"; do
     fi
 
     if printf '%s\n' "$audit_report" | grep -qE "$unreachable_registry"; then
-        echo "pre-commit: npm registry unreachable - skipping the" >&2
-        echo "pre-commit: vulnerability scan of $package" >&2
+        echo "checks: npm registry unreachable - skipping the" >&2
+        echo "checks: vulnerability scan of $package" >&2
         continue
     fi
 
-    echo "pre-commit: npm audit failed before it could scan $package:" >&2
+    echo "checks: npm audit failed before it could scan $package:" >&2
     printf '%s\n' "$audit_report" >&2
     exit 1
 done

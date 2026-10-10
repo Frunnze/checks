@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: linters in php (phpcs)"
-echo "pre-commit: write for the reader - code is read far more than written"
+echo "checks: linters in php (phpcs)"
+echo "checks: write for the reader - code is read far more than written"
 
 require_binary "$php_tools/phpcs" phpcs
 
@@ -19,8 +19,8 @@ for source_directory in "$@"; do
     if ! (cd "$package" && "$php_tools/phpcs" -q --standard="$rules" \
         ${ignored_sniffs:+--exclude="$ignored_sniffs"} \
         $(package_folders "$source_directory")); then
-        echo "pre-commit: phpcs rejected $package - phpcbf fixes the" >&2
-        echo "pre-commit: layout, the rest needs a hand" >&2
+        echo "checks: phpcs rejected $package - phpcbf fixes the" >&2
+        echo "checks: layout, the rest needs a hand" >&2
         exit 1
     fi
 done

@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: open/closed in typescript (no growing closed dispatches)"
-echo "pre-commit: follow OCP - extend behaviour without editing its policy"
+echo "checks: open/closed in typescript (no growing closed dispatches)"
+echo "checks: follow OCP - extend behaviour without editing its policy"
 
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript

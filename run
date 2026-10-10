@@ -8,7 +8,7 @@ hook_stage=all
 
 if [ "$1" = --stage ]; then
     if [ $# -lt 2 ]; then
-        echo "pre-commit: --stage needs a value" >&2
+        echo "checks: --stage needs a value" >&2
         exit 1
     fi
 
@@ -19,7 +19,7 @@ fi
 case "$hook_stage" in
     pre-commit | pre-push | ci | all) ;;
     *)
-        echo "pre-commit: --stage must be pre-commit, pre-push or ci" >&2
+        echo "checks: --stage must be pre-commit, pre-push or ci" >&2
         exit 1
         ;;
 esac
@@ -36,8 +36,8 @@ export hook_stage
 require_binary "$toolkit_python" python
 
 if [ ! -f "$configuration_file" ]; then
-    echo "pre-commit: no checks.toml in $project_root -" >&2
-    echo "pre-commit: see $toolkit/README.md" >&2
+    echo "checks: no checks.toml in $project_root -" >&2
+    echo "checks: see $toolkit/README.md" >&2
     exit 1
 fi
 
@@ -63,8 +63,8 @@ export changed_files
 require_source_directories() {
     for source_directory in "$@"; do
         if [ ! -d "$source_directory" ]; then
-            echo "pre-commit: $source_directory is in checks.toml but is" >&2
-            echo "pre-commit: not a folder, so nothing checks it" >&2
+            echo "checks: $source_directory is in checks.toml but is" >&2
+            echo "checks: not a folder, so nothing checks it" >&2
             exit 1
         fi
 

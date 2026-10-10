@@ -25,7 +25,6 @@ EXPERIMENTAL_CHECKS = (
     "nested-definitions",
     "property-tests",
 )
-HOOK_OUTPUT_PREFIX = "pre-commit:"
 HYPOTHESIS_SETTINGS = settings(
     max_examples=8,
     deadline=None,

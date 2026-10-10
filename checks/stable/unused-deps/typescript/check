@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: typescript dependencies (declare what you import, drop"
-echo "pre-commit: what you don't)"
+echo "checks: typescript dependencies (declare what you import, drop"
+echo "checks: what you don't)"
 
 require_binary "$node_tools/knip" knip
 
@@ -13,10 +13,10 @@ for source_directory in "$@"; do
 
     if ! (cd "$package" && "$node_tools/knip" \
         --include dependencies,unlisted,binaries,unresolved); then
-        echo "pre-commit: $package/package.json disagrees with the" >&2
-        echo "pre-commit: imports - drop the unused dependency, declare" >&2
-        echo "pre-commit: the imported one, or configure" >&2
-        echo "pre-commit: ignoreDependencies in $package/knip.json" >&2
+        echo "checks: $package/package.json disagrees with the" >&2
+        echo "checks: imports - drop the unused dependency, declare" >&2
+        echo "checks: the imported one, or configure" >&2
+        echo "checks: ignoreDependencies in $package/knip.json" >&2
         exit 1
     fi
 done

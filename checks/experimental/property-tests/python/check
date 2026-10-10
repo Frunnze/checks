@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: property tests in python (one per definition)"
-echo "pre-commit: design by contract - assert the guarantee, not the behaviour"
+echo "checks: property tests in python (one per definition)"
+echo "checks: design by contract - assert the guarantee, not the behaviour"
 
 findings=$(for source_directory in "$@"; do
     python_files_in $(sources_and_tests "$source_directory") \

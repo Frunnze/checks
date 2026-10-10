@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: dead code in typescript (delete what nothing reaches)"
-echo "pre-commit: follow YAGNI - delete what nothing reaches, do not keep it"
+echo "checks: dead code in typescript (delete what nothing reaches)"
+echo "checks: follow YAGNI - delete what nothing reaches, do not keep it"
 
 require_binary "$node_tools/knip" knip
 
@@ -13,9 +13,9 @@ for source_directory in "$@"; do
 
     if ! (cd "$package" && "$node_tools/knip" \
         --include files,exports,types,duplicates); then
-        echo "pre-commit: nothing reaches this code in $package -" >&2
-        echo "pre-commit: delete it, or name the entry point in" >&2
-        echo "pre-commit: $package/knip.json when the runtime loads it" >&2
+        echo "checks: nothing reaches this code in $package -" >&2
+        echo "checks: delete it, or name the entry point in" >&2
+        echo "checks: $package/knip.json when the runtime loads it" >&2
         exit 1
     fi
 done

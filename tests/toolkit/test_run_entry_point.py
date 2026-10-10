@@ -55,7 +55,7 @@ def test_rejects_an_unknown_check_or_stage(
     finished = _run(tmp_path, CONFIGURATION, arguments)
 
     assert finished.returncode == 1
-    assert "pre-commit:" in finished.stderr
+    assert "checks:" in finished.stderr
     assert "long.py" not in finished.stderr
 
 

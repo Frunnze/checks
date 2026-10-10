@@ -11,22 +11,22 @@ composer_binary=$(command -v composer || true)
 
 require_binary() {
     if [ ! -x "$1" ]; then
-        echo "pre-commit: $2 is not installed -" >&2
-        echo "pre-commit: run ./install.sh in $toolkit" >&2
+        echo "checks: $2 is not installed -" >&2
+        echo "checks: run ./install.sh in $toolkit" >&2
         exit 1
     fi
 }
 
 require_command() {
     if ! command -v "$1" > /dev/null 2>&1; then
-        echo "pre-commit: $1 is not installed - $2" >&2
+        echo "checks: $1 is not installed - $2" >&2
         exit 1
     fi
 }
 
 require_node_modules() {
     if [ ! -d "$1/node_modules" ]; then
-        echo "pre-commit: $1 has no node_modules - run npm install there" >&2
+        echo "checks: $1 has no node_modules - run npm install there" >&2
         exit 1
     fi
 }
@@ -112,8 +112,8 @@ changed_files_at() {
         return
     fi
 
-    echo "pre-commit: the branch has no upstream yet, so every tracked" >&2
-    echo "pre-commit: file counts as changed" >&2
+    echo "checks: the branch has no upstream yet, so every tracked" >&2
+    echo "checks: file counts as changed" >&2
     git -c core.quotePath=false ls-files
 }
 
@@ -126,7 +126,7 @@ fail_on_findings() {
     fi
 
     for explanation in "$@"; do
-        echo "pre-commit: $explanation" >&2
+        echo "checks: $explanation" >&2
     done
 
     printf '%s\n' "$findings" | grep -a . >&2
@@ -242,10 +242,10 @@ require_supported_language() {
         | paste -sd' ' -)
 
     if [ -n "$unsupported_extensions" ]; then
-        echo "pre-commit: $source_directory holds $unsupported_extensions" >&2
-        echo "pre-commit: files - no check supports that language, so" >&2
-        echo "pre-commit: they go unchecked" >&2
-        echo "pre-commit: (supported: $supported_languages)" >&2
+        echo "checks: $source_directory holds $unsupported_extensions" >&2
+        echo "checks: files - no check supports that language, so" >&2
+        echo "checks: they go unchecked" >&2
+        echo "checks: (supported: $supported_languages)" >&2
     fi
 
     for language in $supported_languages; do
@@ -255,8 +255,8 @@ require_supported_language() {
         fi
     done
 
-    echo "pre-commit: $source_directory holds no $supported_languages" >&2
-    echo "pre-commit: code, so no check can run on it" >&2
+    echo "checks: $source_directory holds no $supported_languages" >&2
+    echo "checks: code, so no check can run on it" >&2
     exit 1
 }
 

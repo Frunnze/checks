@@ -4,9 +4,9 @@ set -e
 
 minimum_coverage=$(setting checks.coverage.fail-under)
 
-echo "pre-commit: php coverage (classes, methods, lines at"
-echo "pre-commit: $minimum_coverage%)"
-echo "pre-commit: test first - do not write a branch no test asked for"
+echo "checks: php coverage (classes, methods, lines at"
+echo "checks: $minimum_coverage%)"
+echo "checks: test first - do not write a branch no test asked for"
 
 require_binary "$php_binary" php
 
@@ -20,7 +20,7 @@ for source_directory in "$@"; do
         --only-summary-for-coverage-text \
         --colors=never 2>&1) || {
         echo "$report" >&2
-        echo "pre-commit: the tests of $package fail" >&2
+        echo "checks: the tests of $package fail" >&2
         exit 1
     }
 

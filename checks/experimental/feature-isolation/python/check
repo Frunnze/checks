@@ -4,8 +4,8 @@ set -e
 
 . "$(dirname "$0")/../layout.sh"
 
-echo "pre-commit: feature isolation in python (siblings meet only in"
-echo "pre-commit: shared)"
+echo "checks: feature isolation in python (siblings meet only in"
+echo "checks: shared)"
 
 require_feature_layout features "$@"
 
@@ -20,7 +20,7 @@ fail_on_findings "$crossings" \
     "these features reach into a sibling - move what they share into" \
     "shared/ and depend on that:"
 
-echo "pre-commit: shared ownership (two features or it is not shared)"
+echo "checks: shared ownership (two features or it is not shared)"
 
 findings=$(for source_directory in "$@"; do
     python_files_in "$source_directory" \

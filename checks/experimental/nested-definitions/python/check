@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: nested definitions in python (no def inside a def)"
-echo "pre-commit: keep it testable - nothing can reach a def hidden in a def"
+echo "checks: nested definitions in python (no def inside a def)"
+echo "checks: keep it testable - nothing can reach a def hidden in a def"
 
 findings=$(python_files_in $(sources_and_tests "$@") \
     | "$toolkit_python" "$(dirname "$0")/nested_definitions.py")

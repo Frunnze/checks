@@ -4,8 +4,8 @@ set -e
 
 minimum_coverage=$(setting checks.coverage.fail-under)
 
-echo "pre-commit: python branch coverage (min $minimum_coverage%)"
-echo "pre-commit: test first - do not write a branch no test asked for"
+echo "checks: python branch coverage (min $minimum_coverage%)"
+echo "checks: test first - do not write a branch no test asked for"
 
 python_binary=$(project_python)
 require_binary "$python_binary" "the project python ($python_binary)"

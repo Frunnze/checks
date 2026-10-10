@@ -2,9 +2,9 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: definition names in typescript (one responsibility per"
-echo "pre-commit: name)"
-echo "pre-commit: follow SRP - split a name that says 'And'/'Or'"
+echo "checks: definition names in typescript (one responsibility per"
+echo "checks: name)"
+echo "checks: follow SRP - split a name that says 'And'/'Or'"
 
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript

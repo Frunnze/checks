@@ -2,8 +2,8 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "pre-commit: dead code in php (delete what nothing reaches)"
-echo "pre-commit: follow YAGNI - delete what nothing reaches, do not keep it"
+echo "checks: dead code in php (delete what nothing reaches)"
+echo "checks: follow YAGNI - delete what nothing reaches, do not keep it"
 
 require_binary "$php_tools/phpstan" phpstan
 
@@ -19,8 +19,8 @@ for source_directory in "$@"; do
         --no-progress --memory-limit=1G -c "$rules" \
         --autoload-file vendor/autoload.php \
         $(package_folders "$source_directory")); then
-        echo "pre-commit: nothing reaches this code in $package -" >&2
-        echo "pre-commit: delete it" >&2
+        echo "checks: nothing reaches this code in $package -" >&2
+        echo "checks: delete it" >&2
         exit 1
     fi
 done

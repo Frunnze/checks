@@ -267,7 +267,7 @@ def main(arguments: list[str]) -> int:
             configuration_path, tool_name, (package, project_root)
         )
     except (OSError, ValueError) as error:
-        _ = sys.stderr.write(f"pre-commit: checks.toml: {error}\n")
+        _ = sys.stderr.write(f"checks: checks.toml: {error}\n")
         return 1
 
     _ = sys.stdout.write(generated)

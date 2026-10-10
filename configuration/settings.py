@@ -33,7 +33,7 @@ BOTH_HOOKS = "both"
 EVERY_STAGE = "all"
 ENABLED_CHECKS_SETTING = "enabled_check_directories"
 BARE_TOML_KEY = re.compile(r"[A-Za-z0-9_-]+")
-ERROR_PREFIX = "pre-commit: checks.toml:"
+ERROR_PREFIX = "checks: checks.toml:"
 DELETE_CHARACTER = "\x7f"
 ESCAPED_DELETE = "\\u007f"
 

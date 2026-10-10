@@ -4,7 +4,7 @@ set -e
 
 . "$(dirname "$0")/../layout.sh"
 
-echo "pre-commit: feature isolation in php (siblings meet only in Shared)"
+echo "checks: feature isolation in php (siblings meet only in Shared)"
 
 require_binary "$php_binary" php
 require_feature_layout Features "$@"
