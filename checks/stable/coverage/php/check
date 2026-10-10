@@ -28,7 +28,7 @@ for source_directory in "$@"; do
     echo "$summary"
 
     uncovered=$(echo "$summary" | awk -v minimum="$minimum_coverage" \
-        '{ sub("%", "", $2); if ($2 + 0 < minimum) print }')
+        '$2 ~ /%$/ { sub("%", "", $2); if ($2 + 0 < minimum) print }')
 
     fail_on_findings "$uncovered" \
         "$package is covered below $minimum_coverage% - test what you" \

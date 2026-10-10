@@ -12,21 +12,29 @@ advisory_filter="$(dirname "$0")/unaccepted_advisories.js"
 for source_directory in "$@"; do
     package=$(package_of "$source_directory")
 
-    if audit_output=$(npm audit --prefix "$package" --json 2>&1); then
+    if audit_report=$(npm audit --prefix "$package" --json 2> /dev/null)
+    then
         continue
     fi
 
-    if echo "$audit_output" | grep -qE "$unreachable_registry"; then
+    if printf '%s\n' "$audit_report" | grep -q '"vulnerabilities"'; then
+        findings=$(printf '%s\n' "$audit_report" \
+            | "$node_binary" "$advisory_filter" $(whitelist_entries))
+
+        fail_on_findings "$findings" \
+            "a package in $package has a known vulnerability - run npm" \
+            "audit fix, pin the fixed version through overrides, or add" \
+            "the advisory id to [checks.vulnerable-deps] whitelist:"
+        continue
+    fi
+
+    if printf '%s\n' "$audit_report" | grep -qE "$unreachable_registry"; then
         echo "pre-commit: npm registry unreachable - skipping the" >&2
         echo "pre-commit: vulnerability scan of $package" >&2
         continue
     fi
 
-    findings=$(echo "$audit_output" \
-        | "$node_binary" "$advisory_filter" $(whitelist_entries))
-
-    fail_on_findings "$findings" \
-        "a package in $package has a known vulnerability - run npm" \
-        "audit fix, pin the fixed version through overrides, or add" \
-        "the advisory id to [checks.vulnerable-deps] whitelist:"
+    echo "pre-commit: npm audit failed before it could scan $package:" >&2
+    printf '%s\n' "$audit_report" >&2
+    exit 1
 done
