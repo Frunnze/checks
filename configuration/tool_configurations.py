@@ -5,7 +5,7 @@ from typing import cast
 from xml.etree import ElementTree
 
 from dependency_analyser_settings import dependency_analyser_configuration
-from frameworks import preset_tool_section
+from frameworks import preset_tool_section, with_preset
 from phpstan_settings import (
     derived_parameters,
     phpstan_configuration,
@@ -79,7 +79,7 @@ def eslint_configuration(
         user_configs.append({"basePath": str(package), **override_table})
 
     return ESLINT_MODULE.format(
-        presets_module=json.dumps(str(presets_module)),
+        presets_module=json.dumps(presets_module.as_uri()),
         package_directory=json.dumps(str(package)),
         chosen_presets=json.dumps(chosen_presets),
         user_configs=json.dumps(user_configs),
@@ -187,7 +187,7 @@ def tool_section(
     written = as_table(f"checks.{check_name}.{tool_name}", settings[tool_name])
     preset = preset_tool_section(package, check_name, tool_name)
 
-    return {**preset, **written}
+    return with_preset(preset, written)
 
 
 def phpstan_for(

@@ -14,6 +14,7 @@ PHPSTAN_KEYS = {"includes", "parameters", "scan-root-files"}
 PHP_REQUIREMENT = re.compile(r"(\d+)\.(\d+)")
 MAJOR_VERSION_FACTOR = 10_000
 MINOR_VERSION_FACTOR = 100
+LOWEST_ANALYSED_PHP_VERSION = 70100
 
 
 def php_version_of(package: Path) -> int | None:
@@ -57,7 +58,9 @@ def derived_parameters(
     php_version = php_version_of(package)
 
     if php_version is not None:
-        parameters["phpVersion"] = php_version
+        parameters["phpVersion"] = max(
+            php_version, LOWEST_ANALYSED_PHP_VERSION
+        )
 
     if section.get("scan-root-files") is True:
         root_files = sorted(project_root.glob("*.php"))
