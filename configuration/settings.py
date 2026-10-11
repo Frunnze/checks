@@ -153,19 +153,33 @@ def toml_value(written_value: object) -> str:
     return json_text.replace(DELETE_CHARACTER, ESCAPED_DELETE)
 
 
-def toml_override_lines(
-    table: dict[str, object], key_prefix: str
-) -> list[str]:
+def toml_inline_value(written_value: object) -> str:
+    if isinstance(written_value, dict):
+        table = cast("dict[str, object]", written_value)
+        pairs: list[str] = []
+
+        for key, nested_value in table.items():
+            inline_value = toml_inline_value(nested_value)
+            pairs.append(f"{toml_key(key)} = {inline_value}")
+
+        return "{ " + ", ".join(pairs) + " }"
+
+    if isinstance(written_value, list):
+        entries: list[str] = []
+
+        for entry in cast("list[object]", written_value):
+            entries.append(toml_inline_value(entry))
+
+        return "[" + ", ".join(entries) + "]"
+
+    return toml_value(written_value)
+
+
+def toml_override_lines(table: dict[str, object]) -> list[str]:
     lines: list[str] = []
 
     for key, nested_value in table.items():
-        dotted_key = f"{key_prefix}{toml_key(key)}"
-
-        if isinstance(nested_value, dict):
-            nested_table = cast("dict[str, object]", nested_value)
-            lines.extend(toml_override_lines(nested_table, f"{dotted_key}."))
-        else:
-            lines.append(f"{dotted_key} = {toml_value(nested_value)}")
+        lines.append(f"{toml_key(key)} = {toml_inline_value(nested_value)}")
 
     return lines
 
@@ -185,7 +199,7 @@ def setting_lines(
     if isinstance(found_value, dict):
         table = cast("dict[str, object]", found_value)
 
-        return toml_override_lines(table, "")
+        return toml_override_lines(table)
 
     if not isinstance(found_value, list):
         return [printable_line(found_value)]

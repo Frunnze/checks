@@ -99,6 +99,20 @@ def phpcs_property(name: str, property_value: object) -> ElementTree.Element:
 
         return property_element
 
+    if isinstance(property_value, dict):
+        property_element.set("type", "array")
+        property_table = cast("dict[str, object]", property_value)
+
+        for element_key, element_value in property_table.items():
+            _ = ElementTree.SubElement(
+                property_element,
+                "element",
+                key=element_key,
+                value=str(element_value),
+            )
+
+        return property_element
+
     if isinstance(property_value, bool):
         property_element.set("value", str(property_value).lower())
 

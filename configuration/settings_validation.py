@@ -31,6 +31,7 @@ CHECK_ORDER = (
     "coverage",
 )
 UNSILENCEABLE_CHECKS = frozenset({"api-contract", "coverage", "unused-deps"})
+UNSCOPED_CHECKS = frozenset({"secrets"})
 WHEN_CHOICES = frozenset({"pre-commit", "pre-push", "both", "off"})
 SCOPE_CHOICES = frozenset({"changed", "repository"})
 COMMON_CHECK_KEYS = frozenset(
@@ -198,6 +199,10 @@ def validate_check(check_name: str, check_section: object) -> None:
         validate_choice(f"{table_name}.when", check["when"], WHEN_CHOICES)
 
     if "scope" in check:
+        if check_name in UNSCOPED_CHECKS:
+            message = f"{table_name} has no scope - it scans every change"
+            raise ConfigurationError(message)
+
         validate_choice(f"{table_name}.scope", check["scope"], SCOPE_CHOICES)
 
     if "whitelist" in check:

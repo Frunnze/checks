@@ -91,8 +91,9 @@ when = "pre-push"
 - `stable`: the hook every stable check runs at - `pre-commit` (default),
   `pre-push`, `both` or `off`.
 - `[checks.<name>]` overrides one check: `when` (same values; experimental
-  checks are `off` until set), `scope` (`repository` or `changed`),
-  `whitelist`, `source_directories`, and `max-lines` / `fail-under`.
+  checks are `off` until set), `scope` (`repository` or `changed`; not
+  for `secrets`, which scans every change), `whitelist`,
+  `source_directories`, and `max-lines` / `fail-under`.
 - Tools take their own options under their check, for example
   `[checks.linters.ruff]`, `[checks.linters.eslint]`, `[checks.linters.phpcs]`,
   `[checks.strict-typing.phpstan]`.

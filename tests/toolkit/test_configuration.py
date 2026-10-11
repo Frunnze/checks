@@ -71,6 +71,7 @@ def test_a_check_section_overrides_the_global_folders(tmp_path: Path) -> None:
         (MINIMAL + "[checks.coverage]\nwhitelist = [\"x\"]\n", "coverage"),
         (MINIMAL + "[checks.linters]\nwhen = \"post-merge\"\n", "when"),
         (MINIMAL + "[checks.linters]\nscope = \"staged\"\n", "scope"),
+        (MINIMAL + "[checks.secrets]\nscope = \"changed\"\n", "no scope"),
         (MINIMAL + "[checks.file-length]\nmax_lines = 3\n", "max_lines"),
         (MINIMAL + "[checks.file-length]\nmax-lines = 0\n", "max-lines"),
         (MINIMAL + "[checks.coverage]\nfail-under = 101\n", "fail-under"),
@@ -143,7 +144,7 @@ def test_prints_ruff_settings_as_override_pairs(tmp_path: Path) -> None:
 
     assert finished.stdout.splitlines() == [
         "line-length = 100",
-        'lint.per-file-ignores."t/**" = ["S101"]',
+        'lint = { per-file-ignores = { "t/**" = ["S101"] } }',
     ]
 
 

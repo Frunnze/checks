@@ -11,8 +11,14 @@ echo "checks: the exact finding and a reason to the"
 echo "checks: [checks.single-responsibility] whitelist in checks.toml"
 
 reviewed_findings=$(mktemp)
-trap 'rm -f "$reviewed_findings"' EXIT
+reported_files=$(mktemp)
+trap 'rm -f "$reviewed_findings" "$reported_files"' EXIT
 whitelist_entries > "$reviewed_findings"
+
+if [ "$check_scope" = changed ]; then
+    printf '%s\n' "$changed_files" > "$reported_files"
+    set -- --reported "$reported_files" "$@"
+fi
 
 "$toolkit_python" "$(dirname "$0")/srp_check.py" \
     --whitelist "$reviewed_findings" "$@"

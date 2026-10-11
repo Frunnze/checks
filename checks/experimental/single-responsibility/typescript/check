@@ -14,8 +14,14 @@ require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 
 reviewed_findings=$(mktemp)
-trap 'rm -f "$reviewed_findings"' EXIT
+reported_files=$(mktemp)
+trap 'rm -f "$reviewed_findings" "$reported_files"' EXIT
 whitelist_entries > "$reviewed_findings"
+
+if [ "$check_scope" = changed ]; then
+    printf '%s\n' "$changed_files" > "$reported_files"
+    set -- --reported "$reported_files" "$@"
+fi
 
 "$toolkit_python" "$(dirname "$0")/../python/srp_check.py" \
     --node "$node_binary" --typescript "$typescript_module" \

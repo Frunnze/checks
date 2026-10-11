@@ -102,13 +102,13 @@ directories_with_changes() {
 changed_files_at() {
     if [ "$1" != pre-push ]; then
         git -c core.quotePath=false diff --cached --name-only \
-            --diff-filter=ACMR
+            --no-renames --diff-filter=ACMD
         return
     fi
 
     if git rev-parse --verify --quiet "@{upstream}" > /dev/null; then
-        git -c core.quotePath=false diff --name-only --diff-filter=ACMR \
-            "@{upstream}...HEAD"
+        git -c core.quotePath=false diff --name-only --no-renames \
+            --diff-filter=ACMD "@{upstream}...HEAD"
         return
     fi
 

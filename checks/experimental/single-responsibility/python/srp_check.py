@@ -47,6 +47,13 @@ def python_file_facts(path: Path) -> dict:
     }
 
 
+def reported_paths(listing: str | None) -> set[Path] | None:
+    if listing is None:
+        return None
+    lines = Path(listing).read_text(encoding="utf-8").splitlines()
+    return {Path(line).resolve() for line in lines if line.strip()}
+
+
 def analyze(
     paths: list[Path],
     node: str,
@@ -55,6 +62,7 @@ def analyze(
     scan_roots=(),
     tsconfig=None,
     whitelist=None,
+    reported=None,
 ) -> dict:
     whitelist_path = (
         Path(whitelist) if whitelist is not None else DEFAULT_WHITELIST
@@ -94,6 +102,13 @@ def analyze(
         for item in parsed_files
     ]
     reports.sort(key=lambda report: report["path"])
+    kept_paths = reported_paths(reported)
+    if kept_paths is not None:
+        reports = [
+            report
+            for report in reports
+            if Path(report["path"]).resolve() in kept_paths
+        ]
     summary = apply_whitelist(reports, exceptions)
     return {
         "schema_version": 6,
@@ -153,6 +168,10 @@ def main() -> int:
         help="reviewed exceptions file; default: whitelist.txt here",
     )
     parser.add_argument(
+        "--reported",
+        help="file listing the only paths whose findings count; else all",
+    )
+    parser.add_argument(
         "--source-root",
         action="append",
         default=[],
@@ -176,6 +195,7 @@ def main() -> int:
             [Path(path) for path in args.paths if Path(path).is_dir()],
             args.tsconfig,
             args.whitelist,
+            args.reported,
         )
     except SyntaxError as error:
         print(

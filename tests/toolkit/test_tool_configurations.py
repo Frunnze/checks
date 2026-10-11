@@ -76,6 +76,33 @@ def test_phpcs_writes_array_properties_as_elements() -> None:
     assert elements == ["link_checkup", "LinkCheckup"]
 
 
+def test_phpcs_writes_table_properties_as_keyed_elements() -> None:
+    ruleset = ElementTree.fromstring(
+        phpcs_configuration(
+            {
+                "properties": {
+                    "Generic.PHP.ForbiddenFunctions": {
+                        "forbiddenFunctions": {
+                            "sizeof": "count",
+                            "delete": "unset",
+                        },
+                    },
+                },
+            },
+            BASE_RULESET,
+        )
+    )
+
+    forbidden = ruleset.find(".//property[@name='forbiddenFunctions']")
+
+    assert forbidden is not None
+    assert forbidden.get("type") == "array"
+    assert [
+        (element.get("key"), element.get("value"))
+        for element in forbidden.iter("element")
+    ] == [("sizeof", "count"), ("delete", "unset")]
+
+
 def test_phpcs_rejects_an_unknown_setting() -> None:
     with pytest.raises(ConfigurationError, match="standards"):
         _ = phpcs_configuration({"standards": ["PSR12"]}, BASE_RULESET)
