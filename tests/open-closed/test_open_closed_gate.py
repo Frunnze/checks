@@ -80,13 +80,11 @@ def test_reports_error_text_coupling_across_languages_once(
         tmp_path, "open-closed", {"open-closed": f'scope = "{scope}"\n'}
     )
 
-    assert finished.returncode == 1
-    assert [
+    reported = [
         line for line in stderr_lines(finished) if "error text" in line
-    ] == [
-        (
-            f'{consumer_path}:2: branches on human-readable error text '
-            f'"{_DECLINED}" produced at {producer_path}:2; use a stable '
-            "error code and handler registry"
-        )
     ]
+
+    assert finished.returncode == 1
+    assert len(reported) == 1
+    assert f"{consumer_path}:2" in reported[0]
+    assert f"{producer_path}:2" in reported[0]

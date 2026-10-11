@@ -2,6 +2,8 @@ import ast
 
 ENUM_BASES = {"Enum", "Flag", "IntEnum", "IntFlag", "StrEnum"}
 
+QualifiedClass = tuple[str, ast.ClassDef]
+
 
 def literal_annotation(node: ast.AST) -> set[str] | None:
     if not isinstance(node, ast.Subscript):
@@ -54,12 +56,41 @@ def inherits_from(owner: ast.ClassDef, names: set[str]) -> bool:
     )
 
 
-def enum_classes(tree: ast.Module) -> list[ast.ClassDef]:
-    return [
-        node
-        for node in tree.body
-        if isinstance(node, ast.ClassDef) and inherits_from(node, ENUM_BASES)
-    ]
+def enum_classes(tree: ast.Module) -> list[QualifiedClass]:
+    return _enum_classes_in(tree.body, "")
+
+
+def _enum_classes_in(
+    body: list[ast.stmt], owner: str
+) -> list[QualifiedClass]:
+    found: list[QualifiedClass] = []
+
+    for node in body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+
+        name = f"{owner}{node.name}"
+
+        if inherits_from(node, ENUM_BASES):
+            found.append((name, node))
+
+        found.extend(_enum_classes_in(node.body, f"{name}."))
+
+    return found
+
+
+def imported_aliases(tree: ast.Module) -> dict[str, str]:
+    found: dict[str, str] = {}
+
+    for statement in tree.body:
+        if not isinstance(statement, ast.ImportFrom):
+            continue
+
+        for alias in statement.names:
+            if alias.asname is not None:
+                found[alias.asname] = alias.name
+
+    return found
 
 
 def expression_name(node: ast.AST) -> str:

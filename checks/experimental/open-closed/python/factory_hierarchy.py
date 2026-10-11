@@ -68,18 +68,47 @@ def _quoted_annotation(text: str) -> ast.expr | None:
 def returned_constructors(scope: ast.AST) -> set[str]:
     found: set[str] = set()
 
-    for node in ast.walk(scope):
-        if not isinstance(node, ast.Return) or not isinstance(
-            node.value, ast.Call
-        ):
+    for value in _returned_values(scope):
+        if not isinstance(value, ast.Call):
             continue
 
-        name = class_name(node.value.func)
+        name = class_name(value.func)
 
         if name is not None and name[:1].isupper():
             found.add(name)
 
     return found
+
+
+def _returned_values(scope: ast.AST) -> list[ast.expr]:
+    returned = [
+        node.value
+        for node in ast.walk(scope)
+        if isinstance(node, ast.Return) and node.value is not None
+    ]
+    names = {value.id for value in returned if isinstance(value, ast.Name)}
+    assigned = [
+        node.value
+        for node in ast.walk(scope)
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id in names
+            for target in node.targets
+        )
+    ]
+    found: list[ast.expr] = []
+
+    for value in [*returned, *assigned]:
+        found.extend(_alternatives(value))
+
+    return found
+
+
+def _alternatives(value: ast.expr) -> list[ast.expr]:
+    if not isinstance(value, ast.IfExp):
+        return [value]
+
+    return [*_alternatives(value.body), *_alternatives(value.orelse)]
 
 
 def inherits(

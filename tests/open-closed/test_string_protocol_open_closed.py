@@ -63,7 +63,12 @@ def test_flags_behavior_selected_by_python_response_text_in_typescript(
             'web/account.ts:2: branches on human-readable error text "Account '
             'name already exists" produced at server/account.py:2; use a '
             "stable error code and handler registry"
-        )
+        ),
+        (
+            'server/account.py:2: produces human-readable error text "Account '
+            'name already exists" branched on at web/account.ts:2; use a '
+            "stable error code and handler registry"
+        ),
     ]
 
 
@@ -115,7 +120,12 @@ def test_flags_typescript_error_text_compared_in_python(
             'worker/retry.py:2: branches on human-readable error text "Remote '
             'service did not answer" produced at web/error.ts:1; use a stable '
             "error code and handler registry"
-        )
+        ),
+        (
+            'web/error.ts:1: produces human-readable error text "Remote '
+            'service did not answer" branched on at worker/retry.py:2; use a '
+            "stable error code and handler registry"
+        ),
     ]
 
 

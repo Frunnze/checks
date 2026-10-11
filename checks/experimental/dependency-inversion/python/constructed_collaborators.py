@@ -8,6 +8,7 @@ from dependency_inversion_findings import (
 )
 from factory_dependencies import constructed_dependencies
 from factory_hierarchy import classes_in
+from python_ast_values import imported_aliases
 from python_structure_types import Module, modules_from
 from standard_input import paths_from_standard_input
 
@@ -28,13 +29,14 @@ def constructed_collaborators(
 def _module_findings(
     module: Module, collaborators: set[str]
 ) -> list[ConstructedCollaborator]:
+    aliases = imported_aliases(module.tree)
     found: list[ConstructedCollaborator] = []
 
     for owner in classes_in(module.tree):
         if wires_dependencies(module.path, owner.name):
             continue
 
-        finding = _owner_finding(module.path, owner, collaborators)
+        finding = _owner_finding(module.path, owner, collaborators, aliases)
 
         if finding is not None:
             found.append(finding)
@@ -43,14 +45,18 @@ def _module_findings(
 
 
 def _owner_finding(
-    path: str, owner: ast.ClassDef, collaborators: set[str]
+    path: str,
+    owner: ast.ClassDef,
+    collaborators: set[str],
+    aliases: dict[str, str],
 ) -> ConstructedCollaborator | None:
     constructor = _constructor_of(owner)
 
     if constructor is None:
         return None
 
-    constructed = constructed_dependencies(constructor) & collaborators
+    built = constructed_dependencies(constructor)
+    constructed = {aliases.get(name, name) for name in built} & collaborators
 
     if not constructed:
         return None

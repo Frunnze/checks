@@ -7,7 +7,11 @@ from ocp_findings import (
     MAXIMUM_VARIANTS,
     MEMBERSHIP_NODES,
 )
-from python_ast_values import enum_classes, expression_name
+from python_ast_values import (
+    enum_classes,
+    expression_name,
+    imported_aliases,
+)
 from scoped_visitor import ScopedVisitor
 
 _MEMBER_VALUE = "value"
@@ -84,7 +88,7 @@ def enum_members(trees: list[ast.Module]) -> dict[str, set[str]]:
     found: dict[str, set[str]] = {}
 
     for tree in trees:
-        for owner in enum_classes(tree):
+        for _name, owner in enum_classes(tree):
             members = found.setdefault(owner.name, set())
 
             for statement in owner.body:
@@ -94,6 +98,18 @@ def enum_members(trees: list[ast.Module]) -> dict[str, set[str]]:
                         for target in statement.targets
                         if isinstance(target, ast.Name)
                     )
+
+    return found
+
+
+def aliased_enums(
+    tree: ast.Module, enums: dict[str, set[str]]
+) -> dict[str, set[str]]:
+    found = dict(enums)
+
+    for alias, name in imported_aliases(tree).items():
+        if name in enums:
+            found[alias] = enums[name]
 
     return found
 

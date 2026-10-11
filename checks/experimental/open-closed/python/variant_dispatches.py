@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from concrete_type_comparisons import ConcreteTypeComparisons
-from enum_comparisons import EnumComparisons, enum_members
+from enum_comparisons import EnumComparisons, aliased_enums, enum_members
 from ocp_findings import (
     FUNCTION_NODES,
     ClosedFactory,
@@ -28,7 +28,8 @@ class VariantDispatches:
         found: list[Finding] = [*structural_findings(modules)]
 
         for module in modules:
-            found.extend(self._find_in_module(module, enums))
+            module_enums = aliased_enums(module.tree, enums)
+            found.extend(self._find_in_module(module, module_enums))
 
         return sorted(found)
 

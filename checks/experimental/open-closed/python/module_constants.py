@@ -37,9 +37,9 @@ def resolved_constants(parsed: list[ParsedModule]) -> list[dict[str, str]]:
 def string_constants(tree: ast.Module) -> dict[str, str]:
     found = _assigned_strings(tree.body)
 
-    for owner in enum_classes(tree):
+    for name, owner in enum_classes(tree):
         for member, value in _assigned_strings(owner.body).items():
-            found[f"{owner.name}.{member}"] = value
+            found[f"{name}.{member}"] = value
 
     return found
 
@@ -56,27 +56,52 @@ def imported_constants(
     found: dict[str, str] = {}
 
     for statement in tree.body:
+        if isinstance(statement, ast.Import):
+            for alias in statement.names:
+                module = _imported_module(path, alias.name, 0, exported)
+                found.update(_prefixed(module, alias.asname or alias.name))
         if not isinstance(statement, ast.ImportFrom):
             continue
 
-        source = _imported_module(path, statement, exported)
+        source = _imported_module(
+            path, statement.module, statement.level, exported
+        )
 
         for alias in statement.names:
+            submodule = _imported_module(
+                path,
+                _joined(statement.module, alias.name),
+                statement.level,
+                exported,
+            )
             found.update(_renamed(source, alias))
+            found.update(_prefixed(submodule, alias.asname or alias.name))
+
+    return found
+
+
+def _joined(package: str | None, name: str) -> str:
+    return name if package is None else f"{package}.{name}"
+
+
+def _prefixed(constants: dict[str, str], prefix: str) -> dict[str, str]:
+    found: dict[str, str] = {}
+
+    for name, value in constants.items():
+        found[f"{prefix}.{name}"] = value
 
     return found
 
 
 def _imported_module(
-    path: str, statement: ast.ImportFrom, exported: dict[Path, dict[str, str]]
+    path: str,
+    module: str | None,
+    level: int,
+    exported: dict[Path, dict[str, str]],
 ) -> dict[str, str]:
-    parts = statement.module.split(".") if statement.module else []
+    parts = module.split(".") if module else []
     parents = list(Path(path).parents)
-    roots = (
-        parents
-        if statement.level == 0
-        else parents[statement.level - 1 : statement.level]
-    )
+    roots = parents if level == 0 else parents[level - 1 : level]
 
     for root in roots:
         location = root.joinpath(*parts)

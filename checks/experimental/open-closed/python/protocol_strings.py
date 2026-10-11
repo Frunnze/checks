@@ -16,7 +16,7 @@ _ERROR_CONSTRUCTORS = ("Error", "Exception", "Response")
 _PYTHON_SUFFIXES = (".py",)
 _TYPESCRIPT_SUFFIXES = (".ts", ".tsx", ".mts", ".cts")
 _SOURCE_SUFFIXES = (*_PYTHON_SUFFIXES, *_TYPESCRIPT_SUFFIXES)
-_CONSUMER_SUFFIXES = {
+_LANGUAGE_SUFFIXES = {
     "python": _PYTHON_SUFFIXES,
     "typescript": _TYPESCRIPT_SUFFIXES,
 }
@@ -201,7 +201,7 @@ def _text_before(source: str, token: re.Match[str]) -> str:
 
 
 def reports_for(
-    paths: list[str], consumer_suffixes: tuple[str, ...] = _SOURCE_SUFFIXES
+    paths: list[str], reported_suffixes: tuple[str, ...] = _SOURCE_SUFFIXES
 ) -> list[str]:
     produced: list[Occurrence] = []
     consumed: list[Occurrence] = []
@@ -226,37 +226,52 @@ def reports_for(
     reports: list[str] = []
 
     for consumer in sorted(set(consumed)):
-        if not consumer.path.endswith(consumer_suffixes):
-            continue
-
         producers = sorted(
-            producer
-            for producer in by_text.get(consumer.text, [])
-            if producer.path != consumer.path
+            {
+                producer
+                for producer in by_text.get(consumer.text, [])
+                if producer.path != consumer.path
+            }
         )
 
         if not producers:
             continue
+        if consumer.path.endswith(reported_suffixes):
+            reports.append(_consumer_report(consumer, producers[0]))
 
-        producer = producers[0]
-        reports.append(
-            f"{consumer.path}:{consumer.line_number}: branches on human-readable "
-            f"error text {json.dumps(consumer.text)} produced at "
-            f"{producer.path}:{producer.line_number}; use a stable error code "
-            "and handler registry"
-        )
+        for producer in producers:
+            if producer.path.endswith(reported_suffixes):
+                reports.append(_producer_report(producer, consumer))
 
     return reports
 
 
+def _consumer_report(consumer: Occurrence, producer: Occurrence) -> str:
+    return (
+        f"{consumer.path}:{consumer.line_number}: branches on human-readable "
+        f"error text {json.dumps(consumer.text)} produced at "
+        f"{producer.path}:{producer.line_number}; use a stable error code "
+        "and handler registry"
+    )
+
+
+def _producer_report(producer: Occurrence, consumer: Occurrence) -> str:
+    return (
+        f"{producer.path}:{producer.line_number}: produces human-readable "
+        f"error text {json.dumps(producer.text)} branched on at "
+        f"{consumer.path}:{consumer.line_number}; use a stable error code "
+        "and handler registry"
+    )
+
+
 def main() -> None:
-    consumer_suffixes = (
-        _CONSUMER_SUFFIXES[sys.argv[1]]
+    reported_suffixes = (
+        _LANGUAGE_SUFFIXES[sys.argv[1]]
         if len(sys.argv) > 1
         else _SOURCE_SUFFIXES
     )
 
-    for report in reports_for(paths_from_standard_input(), consumer_suffixes):
+    for report in reports_for(paths_from_standard_input(), reported_suffixes):
         _ = sys.stdout.write(f"{report}\n")
 
 

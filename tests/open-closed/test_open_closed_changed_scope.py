@@ -24,7 +24,22 @@ _SCATTERED_REPORT = (
 _IMPORT_REQUEST = (
     'import type { ImportRequest } from "./models";\n'
 )
+_DECLINED = "Payment was declined by the bank"
 _SHAPES = {
+    "python error text producer": (
+        {
+            f"{_PYTHON}/a_client.py": (
+                f"def retry(text):\n    return text == {_DECLINED!r}\n"
+            ),
+        },
+        f"{_PYTHON}/z_server.py",
+        f"def register():\n    raise ValueError({_DECLINED!r})\n",
+        (
+            f'{_PYTHON}/z_server.py:2: produces human-readable error text '
+            f'"{_DECLINED}" branched on at {_PYTHON}/a_client.py:2; use a '
+            "stable error code and handler registry"
+        ),
+    ),
     "python registries": (
         {
             f"{_PYTHON}/a_labels.py": (

@@ -92,5 +92,10 @@ def test_flags_error_text_in_every_branch_spelling(
             f"{consumer_path}:{consumer_line}: branches on human-readable "
             f'error text "{_DECLINED}" produced at {producer_path}:2; use a '
             "stable error code and handler registry"
-        )
+        ),
+        (
+            f"{producer_path}:2: produces human-readable error text "
+            f'"{_DECLINED}" branched on at {consumer_path}:{consumer_line}; '
+            "use a stable error code and handler registry"
+        ),
     ]

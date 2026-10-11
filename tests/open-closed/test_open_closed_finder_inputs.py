@@ -82,7 +82,11 @@ def test_finders_read_one_path_per_input_line(
         (
             f'{consumer}:2: branches on human-readable error text '
             f'"{_DECLINED}" produced at {producer}:2; {_ADVICE}'
-        )
+        ),
+        (
+            f'{producer}:2: produces human-readable error text '
+            f'"{_DECLINED}" branched on at {consumer}:2; {_ADVICE}'
+        ),
     ]
 
 
@@ -125,5 +129,9 @@ def test_protocol_finder_scans_typescript_with_latin1_bytes(
         (
             'client.ts:3: branches on human-readable error text '
             f'"{_DECLINED}" produced at server.py:2; {_ADVICE}'
-        )
+        ),
+        (
+            'server.py:2: produces human-readable error text '
+            f'"{_DECLINED}" branched on at client.ts:3; {_ADVICE}'
+        ),
     ]
