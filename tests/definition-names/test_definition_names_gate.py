@@ -83,6 +83,27 @@ JOINED_DEFINITIONS = {
         "type Handler = () => void;\n\n"
         "export class Holder {\n  loadAndSave: Handler = () => {};\n}\n"
     ),
+    "object_arrow_property": (
+        "export const store = {\n"
+        "  loadAndSave: async (key: string) => key,\n"
+        "};\n"
+    ),
+    "object_function_property": (
+        "export const store = {\n"
+        "  loadAndSave: function (key: string) { return key; },\n"
+        "};\n"
+    ),
+    "interface_property": (
+        "export interface Store {\n  loadAndSave: () => void;\n}\n"
+    ),
+    "type_literal_property": (
+        "export type Store = {\n  loadAndSave: () => void;\n};\n"
+    ),
+    "abstract_property": (
+        "export abstract class Store {\n"
+        "  abstract loadAndSave: () => void;\n"
+        "}\n"
+    ),
 }
 JOINED_CALLS = {
     "call_statement": (

@@ -8,6 +8,12 @@ echo "checks: fail fast - refuse bad input at the edge, not deeper in"
 python_binary=$(project_python)
 require_binary "$python_binary" "the project python ($python_binary)"
 
+contract_options="-q -p no:randomly"
+
+if "$python_binary" -c "import pytest_cov" 2> /dev/null; then
+    contract_options="$contract_options --no-cov"
+fi
+
 for source_directory in "$@"; do
     package=$(package_of "$source_directory")
     contract_tests="$(tests_of "$source_directory")/test_api_contract.py"
@@ -20,7 +26,7 @@ for source_directory in "$@"; do
     fi
 
     if ! (cd "$package" && "$python_binary" -m pytest \
-        tests/test_api_contract.py -q -p no:randomly); then
+        tests/test_api_contract.py $contract_options); then
         echo "checks: a generated request crashed an endpoint in" >&2
         echo "checks: $package - refuse the input with a 4xx instead" >&2
         echo "checks: of letting it reach the handler" >&2

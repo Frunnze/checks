@@ -12,6 +12,13 @@ function isFunctionValue(node) {
   );
 }
 
+function holdsFunction(node) {
+  return (
+    isFunctionValue(node.initializer) ||
+    (node.type !== undefined && typescript.isFunctionTypeNode(node.type))
+  );
+}
+
 function isNamedDeclaration(node) {
   return (
     typescript.isFunctionDeclaration(node) ||
@@ -29,8 +36,10 @@ function isMemberDefinition(node) {
     typescript.isMethodSignature(node) ||
     typescript.isGetAccessorDeclaration(node) ||
     typescript.isSetAccessorDeclaration(node) ||
-    (typescript.isPropertyDeclaration(node) &&
-      isFunctionValue(node.initializer))
+    ((typescript.isPropertyDeclaration(node) ||
+      typescript.isPropertySignature(node) ||
+      typescript.isPropertyAssignment(node)) &&
+      holdsFunction(node))
   );
 }
 
