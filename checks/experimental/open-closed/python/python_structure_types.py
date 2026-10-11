@@ -2,11 +2,7 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-from module_constants import (
-    imported_constants,
-    module_location,
-    string_constants,
-)
+from module_constants import resolved_constants
 from python_ast_values import (
     ENUM_BASES,
     assigned_name,
@@ -46,19 +42,12 @@ def parsed_module(path: str) -> ast.Module:
 
 
 def modules_from(paths: list[str]) -> list[Module]:
-    parsed = [
-        Module(path, tree := parsed_module(path), string_constants(tree))
-        for path in paths
-    ]
-    exported = {
-        module_location(module.path): module.constants for module in parsed
-    }
+    parsed = [(path, parsed_module(path)) for path in paths]
+    resolved = resolved_constants(parsed)
     found: list[Module] = []
 
-    for module in parsed:
-        imported = imported_constants(module.path, module.tree, exported)
-        constants = {**imported, **module.constants}
-        found.append(Module(module.path, module.tree, constants))
+    for (path, tree), constants in zip(parsed, resolved, strict=True):
+        found.append(Module(path, tree, constants))
 
     return found
 

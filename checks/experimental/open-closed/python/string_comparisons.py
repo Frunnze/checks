@@ -7,7 +7,7 @@ from ocp_findings import (
     MAXIMUM_VARIANTS,
     MEMBERSHIP_NODES,
 )
-from scoped_visitor import ScopedVisitor
+from scoped_visitor import ScopedVisitor, bound_names
 
 
 class StringComparisons(ScopedVisitor):
@@ -17,6 +17,7 @@ class StringComparisons(ScopedVisitor):
         super().__init__(root)
         self._subjects: dict[str, tuple[str, set[str]]] = {}
         self._constants = constants or {}
+        self._local_names = bound_names(root)
 
     def collected(self) -> list[tuple[str, str, tuple[str, ...]]]:
         return self.with_at_least(MAXIMUM_VARIANTS + 1)
@@ -85,7 +86,7 @@ class StringComparisons(ScopedVisitor):
     def _string_from(self, node: ast.expr) -> str | None:
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
             return node.value
-        if isinstance(node, ast.Name):
+        if isinstance(node, ast.Name) and node.id not in self._local_names:
             return self._constants.get(node.id)
 
         return None

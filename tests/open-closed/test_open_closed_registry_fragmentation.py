@@ -12,8 +12,10 @@ Concrete inputs -> expected outputs:
       labels.py:   LABELS = {'deck': 'Deck', 'file': 'File',
                              'note': 'Note'}
       handlers.py: HANDLERS = {'deck': deck, 'file': file, 'note': note}
-  output: reported -> ["handlers.py:5: variant behavior is split across 2
-  registries in 2 files: HANDLERS, LABELS"].
+  output: reported once per file -> ["handlers.py:5: variant behavior is
+  split across 2 registries in 2 files: HANDLERS, LABELS", "labels.py:1:
+  variant behavior is split across 2 registries in 2 files: HANDLERS,
+  LABELS"].
 - input (shrunk falsifying example, now pinned as @example - handlers
   gained 'wide', labels did not):
       labels.py:   LABELS = {'deck': 'Deck', 'file': 'File',

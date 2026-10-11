@@ -180,15 +180,27 @@ function repeatedRegistryReports(registries) {
 
       return pathOrder === 0 ? left.position - right.position : pathOrder;
     });
-    const first = ordered[0];
-    const start = first.sourceFile.getLineAndCharacterOfPosition(first.position);
+    const firstByPath = new Map();
+
+    for (const registry of ordered) {
+      if (!firstByPath.has(registry.path)) {
+        firstByPath.set(registry.path, registry);
+      }
+    }
+
     const names = ordered.map((registry) => registry.name).sort();
-    const paths = new Set(group.map((registry) => registry.path));
-    reports.push(
-      `${first.path}:${start.line + 1}: ${labelFor(group)} behavior is split ` +
-        `across ${group.length} registries in ${paths.size} ` +
-        `${paths.size === 1 ? "file" : "files"}: ${names.join(", ")}`,
-    );
+    const files = firstByPath.size === 1 ? "file" : "files";
+
+    for (const first of firstByPath.values()) {
+      const start = first.sourceFile.getLineAndCharacterOfPosition(
+        first.position,
+      );
+      reports.push(
+        `${first.path}:${start.line + 1}: ${labelFor(group)} behavior is ` +
+          `split across ${group.length} registries in ` +
+          `${firstByPath.size} ${files}: ${names.join(", ")}`,
+      );
+    }
   }
 
   return reports;

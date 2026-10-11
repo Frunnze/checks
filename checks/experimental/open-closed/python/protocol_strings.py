@@ -22,20 +22,27 @@ _CONSUMER_SUFFIXES = {
 }
 _COMMENT_START = "/"
 _QUOTES = ('"', "'", "`")
+_LOOKAHEAD_CHARACTERS = 300
+_STRING_LITERAL = (
+    r'"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'|`(?:\\.|[^`\\])*`'
+)
 _LEXICAL_TOKEN = re.compile(
-    r"//[^\n]*|/\*.*?\*/"
-    r'|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'|`(?:\\.|[^`\\])*`'
-    r"|[A-Za-z_$][\w$]*",
+    rf"//[^\n]*|/\*.*?\*/|{_STRING_LITERAL}|[A-Za-z_$][\w$]*",
     re.DOTALL,
 )
 _COMPARISON_BEFORE = re.compile(r"(?:===|!==|==|!=)\s*$")
 _COMPARISON_AFTER = re.compile(r"^\s*(?:===|!==|==|!=)")
+_INCLUDES_AFTER = re.compile(
+    rf"\s*(?:,\s*(?:{_STRING_LITERAL}|[A-Za-z_$][\w$.]*)\s*)*,?\s*\]"
+    r"\s*\.includes\s*\("
+)
 _CASE_BEFORE = re.compile(r"\bcase\s+$")
 _FIELD_BEFORE = re.compile(
     r"(?:content|detail|error|message|reason)\s*:\s*$"
 )
 _CONSTRUCTOR_BEFORE = re.compile(
-    r"(?:new\s+)?(?:[A-Za-z_$][\w$]*)?(?:Error|Exception|Response)\s*\(\s*$"
+    r"(?:new\s+)?(?:[A-Za-z_$][\w$]*)?(?:Error|Exception|Response)\s*\("
+    r"(?:[^()]*,)?\s*$"
 )
 _CONSTANT_BEFORE = re.compile(
     r"\bconst\s+([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*$"
@@ -141,7 +148,7 @@ def _typescript_occurrences(
 
     for token, value in _message_tokens(source):
         before = _text_before(source, token)
-        after = source[token.end() : token.end() + 20]
+        after = source[token.end() : token.end() + _LOOKAHEAD_CHARACTERS]
         line_number = source.count("\n", 0, token.start()) + 1
         occurrence = Occurrence(path, line_number, value)
 
@@ -151,6 +158,7 @@ def _typescript_occurrences(
             _COMPARISON_BEFORE.search(before)
             or _CASE_BEFORE.search(before)
             or _COMPARISON_AFTER.search(after)
+            or _INCLUDES_AFTER.match(after)
         ):
             consumed.append(occurrence)
 

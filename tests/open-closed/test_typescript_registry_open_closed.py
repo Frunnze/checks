@@ -27,11 +27,14 @@ def test_flags_one_axis_split_across_three_typed_registries(
         ),
     }
 
+    message = (
+        "UnitType behavior is split across 3 registries in 2 files: "
+        "DELETE, ICONS, LINKS"
+    )
+
     assert report_from(_FINDER, tmp_path, files) == [
-        (
-                "src/api.ts:2: UnitType behavior is split across 3 "
-                "registries in 2 files: DELETE, ICONS, LINKS"
-        )
+        f"src/api.ts:2: {message}",
+        f"src/view.ts:2: {message}",
     ]
 
 

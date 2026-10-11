@@ -33,8 +33,10 @@ Concrete inputs -> expected outputs:
                                            note: 'Note' };
       handlers.ts: export const HANDLERS = { deck: () => 1, file: () => 1,
                                              note: () => 1, quiz: () => 1 };
-  output: reported -> ["handlers.ts:1: variant behavior is split across 2
-  registries in 2 files: HANDLERS, LABELS"].
+  output: reported once per file -> ["handlers.ts:1: variant behavior is
+  split across 2 registries in 2 files: HANDLERS, LABELS", "labels.ts:1:
+  variant behavior is split across 2 registries in 2 files: HANDLERS,
+  LABELS"].
 - input (module constants, the Python twin reports `route compares kind
   to 3 strings: deck, file, note` for the same spelling):
       const DECK_KIND = 'deck';
@@ -53,7 +55,8 @@ Concrete inputs -> expected outputs:
   `{ ['deck']: deck, ['file']: file, ['note']: note }`):
   output: the report of the longhand `{ deck: deck, file: file,
   note: note }` -> ["handlers.ts:10: variant behavior is split across 2
-  registries in 2 files: HANDLERS, LABELS"] (was []).
+  registries in 2 files: HANDLERS, LABELS", "labels.ts:1: variant behavior
+  is split across 2 registries in 2 files: HANDLERS, LABELS"] (was []).
 """
 
 from hypothesis import example, given, settings

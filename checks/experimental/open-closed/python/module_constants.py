@@ -4,6 +4,34 @@ from pathlib import Path
 from python_ast_values import enum_classes
 
 _PACKAGE_MODULE = "__init__"
+_STAR_IMPORT = "*"
+_PRIVATE_PREFIX = "_"
+
+ParsedModule = tuple[str, ast.Module]
+
+
+def resolved_constants(parsed: list[ParsedModule]) -> list[dict[str, str]]:
+    own = [string_constants(tree) for _path, tree in parsed]
+    resolved = own
+
+    for _pass in range(len(parsed)):
+        exported: dict[Path, dict[str, str]] = {}
+
+        for (path, _tree), constants in zip(parsed, resolved, strict=True):
+            exported[module_location(path)] = constants
+
+        following: list[dict[str, str]] = []
+
+        for (path, tree), constants in zip(parsed, own, strict=True):
+            imported = imported_constants(path, tree, exported)
+            following.append({**imported, **constants})
+
+        if following == resolved:
+            break
+
+        resolved = following
+
+    return resolved
 
 
 def string_constants(tree: ast.Module) -> dict[str, str]:
@@ -60,6 +88,9 @@ def _imported_module(
 
 
 def _renamed(constants: dict[str, str], alias: ast.alias) -> dict[str, str]:
+    if alias.name == _STAR_IMPORT:
+        return _public(constants)
+
     local_name = alias.asname or alias.name
     prefix = f"{alias.name}."
     found: dict[str, str] = {}
@@ -69,6 +100,16 @@ def _renamed(constants: dict[str, str], alias: ast.alias) -> dict[str, str]:
             found[local_name] = value
         elif name.startswith(prefix):
             found[f"{local_name}.{name.removeprefix(prefix)}"] = value
+
+    return found
+
+
+def _public(constants: dict[str, str]) -> dict[str, str]:
+    found: dict[str, str] = {}
+
+    for name, value in constants.items():
+        if not name.startswith(_PRIVATE_PREFIX):
+            found[name] = value
 
     return found
 

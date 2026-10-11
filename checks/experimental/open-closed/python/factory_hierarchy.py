@@ -18,11 +18,15 @@ def class_bases(modules: list[Module]) -> dict[str, set[str]]:
             direct = {
                 name
                 for base in node.bases
-                if (name := class_name(base)) is not None
+                if (name := class_name(_generic_origin(base))) is not None
             }
             found.setdefault(node.name, set()).update(direct)
 
     return found
+
+
+def _generic_origin(base: ast.expr) -> ast.expr:
+    return base.value if isinstance(base, ast.Subscript) else base
 
 
 def declared_abstractions(modules: list[Module]) -> set[str]:
@@ -44,10 +48,21 @@ def is_factory_method(owner: str, method: str) -> bool:
 
 
 def annotation_name(annotation: ast.expr | None) -> str | None:
+    if isinstance(annotation, ast.Constant) and isinstance(
+        annotation.value, str
+    ):
+        return annotation_name(_quoted_annotation(annotation.value))
     if not isinstance(annotation, (ast.Name, ast.Attribute)):
         return None
 
     return class_name(annotation)
+
+
+def _quoted_annotation(text: str) -> ast.expr | None:
+    try:
+        return ast.parse(text, mode="eval").body
+    except SyntaxError:
+        return None
 
 
 def returned_constructors(scope: ast.AST) -> set[str]:

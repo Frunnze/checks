@@ -58,10 +58,8 @@ function axisFor(context, subject) {
   return undefined;
 }
 
-function siteKeyOf(displayPathFor, site) {
-  const start = site.scope.getStart(site.sourceFile);
-
-  return `${displayPathFor(site.sourceFile)}:${start}`;
+function startOf(site) {
+  return site.scope.getStart(site.sourceFile);
 }
 
 function scatteredReports(context) {
@@ -101,21 +99,29 @@ function scatteredReports(context) {
       continue;
     }
 
-    const first = sites.sort((left, right) => {
-      const leftKey = siteKeyOf(displayPathFor, left);
-      const rightKey = siteKeyOf(displayPathFor, right);
-      return leftKey.localeCompare(rightKey);
-    })[0];
-    const start = first.sourceFile.getLineAndCharacterOfPosition(
-      first.scope.getStart(first.sourceFile),
-    );
+    const firstByPath = new Map();
+
+    for (const site of sites) {
+      const sitePath = displayPathFor(site.sourceFile);
+      const known = firstByPath.get(sitePath);
+
+      if (known === undefined || startOf(site) < startOf(known)) {
+        firstByPath.set(sitePath, site);
+      }
+    }
+
     const variants = [...group.variants].sort();
-    const firstPath = displayPathFor(first.sourceFile);
-    reports.push(
-      `${firstPath}:${start.line + 1}: ${group.label} dispatch ` +
-        `is scattered across ${sites.length} functions in ${paths.size} ` +
-        `files: ${variants.join(", ")}`,
-    );
+
+    for (const [firstPath, first] of firstByPath) {
+      const start = first.sourceFile.getLineAndCharacterOfPosition(
+        startOf(first),
+      );
+      reports.push(
+        `${firstPath}:${start.line + 1}: ${group.label} dispatch ` +
+          `is scattered across ${sites.length} functions in ${paths.size} ` +
+          `files: ${variants.join(", ")}`,
+      );
+    }
   }
 
   return reports;

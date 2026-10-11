@@ -57,11 +57,14 @@ def test_flags_one_variant_axis_dispatched_across_files(
         ),
     }
 
+    message = (
+        "ImportRequest.kind dispatch is scattered across 2 functions in "
+        "2 files: file, link, text"
+    )
+
     assert report_from(_FINDER, tmp_path, files) == [
-        (
-            "src/features/import/label.ts:2: ImportRequest.kind dispatch "
-            "is scattered across 2 functions in 2 files: file, link, text"
-        )
+        f"src/features/import/label.ts:2: {message}",
+        f"src/features/import/origin.ts:2: {message}",
     ]
 
 
@@ -115,12 +118,15 @@ def test_flags_five_variants_in_scattered_dispatch(
         ),
     }
 
+    message = (
+        "FlashcardFace.kind dispatch is scattered across 3 functions "
+        "in 3 files: basic, cloze, feynman, image, list"
+    )
+
     assert report_from(_FINDER, tmp_path, files) == [
-        (
-            "ui-service/src/features/flashcards/a.ts:2: "
-            "FlashcardFace.kind dispatch is scattered across 3 functions "
-            "in 3 files: basic, cloze, feynman, image, list"
-        )
+        f"ui-service/src/features/flashcards/a.ts:2: {message}",
+        f"ui-service/src/features/flashcards/b.ts:2: {message}",
+        f"ui-service/src/features/flashcards/c.ts:2: {message}",
     ]
 
 

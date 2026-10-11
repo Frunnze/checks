@@ -64,10 +64,7 @@ def fragmented_registries(
     found: list[FragmentedRegistry] = []
 
     for group in _grouped_by_axis(registries):
-        fragmentation = _fragmentation_of(group)
-
-        if fragmentation is not None:
-            found.append(fragmentation)
+        found.extend(_fragmentation_of(group))
 
     return found
 
@@ -121,23 +118,31 @@ def _named_differently(narrow: Axis, wide: Axis) -> bool:
     return len(named) == 2
 
 
-def _fragmentation_of(group: list[Registry]) -> FragmentedRegistry | None:
+def _fragmentation_of(group: list[Registry]) -> list[FragmentedRegistry]:
     shared = min(len(registry.axis.domain) for registry in group)
     enough = len(group) >= 3 or (len(group) >= 2 and shared >= 3)
 
     if not enough:
-        return None
+        return []
 
     ordered = sorted(group, key=lambda item: (item.path, item.line_number))
-    first = ordered[0]
+    first_lines: dict[str, int] = {}
+
+    for item in ordered:
+        _ = first_lines.setdefault(item.path, item.line_number)
+
     labels = sorted(
         {item.axis.name for item in group if item.axis.name != _UNNAMED_AXIS}
     )
+    axis = labels[0] if labels else _UNNAMED_AXIS
+    names = tuple(sorted(item.name for item in group))
+    found: list[FragmentedRegistry] = []
 
-    return FragmentedRegistry(
-        first.path,
-        first.line_number,
-        labels[0] if labels else _UNNAMED_AXIS,
-        tuple(sorted(item.name for item in group)),
-        len({item.path for item in group}),
-    )
+    for path, line_number in first_lines.items():
+        found.append(
+            FragmentedRegistry(
+                path, line_number, axis, names, len(first_lines)
+            )
+        )
+
+    return found

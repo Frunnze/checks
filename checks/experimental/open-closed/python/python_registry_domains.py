@@ -13,6 +13,7 @@ _PREFERRED_KEYS = [
     "scope",
     "variant",
 ]
+_MINIMUM_ENTRIES = 3
 
 
 def registry_domain(
@@ -26,9 +27,15 @@ def registry_domain(
             if (resolved := string_value(key, constants)) is not None
         }
 
-        return keys if len(keys) == len(value.keys) else None
+        if len(keys) < _MINIMUM_ENTRIES or len(keys) != len(value.keys):
+            return None
 
-    if not isinstance(value, (ast.List, ast.Tuple)) or len(value.elts) < 3:
+        return keys
+
+    if (
+        not isinstance(value, (ast.List, ast.Tuple))
+        or len(value.elts) < _MINIMUM_ENTRIES
+    ):
         return None
 
     strings = {

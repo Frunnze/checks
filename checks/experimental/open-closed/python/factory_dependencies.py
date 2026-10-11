@@ -1,6 +1,9 @@
 import ast
 
 _ABSTRACT_BASES = {"ABC", "abc.ABC", "Protocol", "typing.Protocol"}
+_SEQUENCE_NODES = (ast.Tuple, ast.List)
+
+AssignedPair = tuple[ast.expr, ast.expr | None]
 
 
 def abstract_classes(tree: ast.Module) -> set[str]:
@@ -37,32 +40,57 @@ def constructed_dependencies(constructor: ast.FunctionDef) -> set[str]:
     for node in ast.walk(constructor):
         if not isinstance(node, (ast.Assign, ast.AnnAssign)):
             continue
-        if not isinstance(node.value, ast.Call):
-            continue
-        if not _assigns_to_instance(node):
-            continue
 
-        name = _expression_name(node.value.func)
+        for target, value in _assigned_pairs(node):
+            if not isinstance(value, ast.Call):
+                continue
+            if not _is_instance_attribute(target):
+                continue
 
-        if name is None:
-            continue
+            name = _expression_name(value.func)
 
-        dependency = name.rsplit(".", 1)[-1]
+            if name is None:
+                continue
 
-        if dependency[:1].isupper():
-            dependencies.add(dependency)
+            dependency = name.rsplit(".", 1)[-1]
+
+            if dependency[:1].isupper():
+                dependencies.add(dependency)
 
     return dependencies
 
 
-def _assigns_to_instance(node: ast.Assign | ast.AnnAssign) -> bool:
+def _assigned_pairs(node: ast.Assign | ast.AnnAssign) -> list[AssignedPair]:
     targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+    pairs: list[AssignedPair] = []
 
-    return any(
+    for target in targets:
+        pairs.extend(_unpacked(target, node.value))
+
+    return pairs
+
+
+def _unpacked(target: ast.expr, value: ast.expr | None) -> list[AssignedPair]:
+    if (
+        not isinstance(target, _SEQUENCE_NODES)
+        or not isinstance(value, _SEQUENCE_NODES)
+        or len(target.elts) != len(value.elts)
+    ):
+        return [(target, value)]
+
+    pairs: list[AssignedPair] = []
+
+    for element, element_value in zip(target.elts, value.elts, strict=True):
+        pairs.extend(_unpacked(element, element_value))
+
+    return pairs
+
+
+def _is_instance_attribute(target: ast.expr) -> bool:
+    return (
         isinstance(target, ast.Attribute)
         and isinstance(target.value, ast.Name)
         and target.value.id == "self"
-        for target in targets
     )
 
 
