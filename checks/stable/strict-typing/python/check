@@ -10,7 +10,7 @@ require_binary "$python_tools/basedpyright" basedpyright
 
 silencers='#[[:space:]]*(type:[[:space:]]*ignore'
 silencers="$silencers|pyright:[^#]*(ignore|basic|standard|report))"
-silencers="$silencers|@([[:alnum:]_]+\.)*no_type_check"
+silencers="$silencers|(^|[^[:alnum:]_])no_type_check([^[:alnum:]_]|$)"
 silenced=$(python_files_in "$@" \
     | while IFS= read -r source_file; do
         grep -anHE "$silencers" "$source_file" || true

@@ -1,5 +1,7 @@
 cd "$project_root"
 
+export PYTHONIOENCODING=utf-8:surrogateescape
+
 toolkit_python="$toolkit/.venv/bin/python"
 python_tools="$toolkit/.venv/bin"
 node_tools="$toolkit/node_modules/.bin"
@@ -62,7 +64,11 @@ within_scope() {
     fi
 
     awk '
-        BEGIN { count = split(ENVIRON["changed_files"], changed, "\n") }
+        BEGIN {
+            while ((getline path < ENVIRON["changed_files_list"]) > 0) {
+                changed[++count] = path
+            }
+        }
         {
             for (position = 1; position <= count; position++) {
                 path = changed[position]
@@ -86,9 +92,9 @@ reportable_findings() {
 }
 
 changed_files_under() {
-    printf '%s\n' "$changed_files" | awk \
-        -v source="$1/" -v tests="$(tests_of "$1")/" \
-        'index($0, source) == 1 || index($0, tests) == 1'
+    awk -v source="$1/" -v tests="$(tests_of "$1")/" \
+        'index($0, source) == 1 || index($0, tests) == 1' \
+        "$changed_files_list"
 }
 
 directories_with_changes() {
@@ -196,9 +202,8 @@ files_ending_in() {
     find -H "$@" -mindepth 1 \
         -name __pycache__ -prune -o \
         -name node_modules -prune -o \
-        -name vendor -prune -o \
-        -name dist -prune -o \
-        -name build -prune -o \
+        -type d \( -name vendor -o -name dist -o -name build \) \
+        -exec git check-ignore -q {} \; -prune -o \
         -type f -print \
         | grep -a -E "\.($extensions)\$" \
         | sed 's|^\./||' \

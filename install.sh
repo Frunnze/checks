@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+unset CDPATH
 
 toolkit=$(cd "$(dirname "$0")" && pwd)
 virtual_environment="$toolkit/.venv"

@@ -1,5 +1,6 @@
 #!/bin/sh
 set -e
+unset CDPATH
 
 toolkit=$(cd "$(dirname "$0")" && pwd)
 project_root=$(git rev-parse --show-toplevel)
@@ -56,9 +57,11 @@ fi
 enabled_check_directories=$(
     setting "enabled_check_directories.$configured_stage"
 )
-changed_files=$(changed_files_at "$hook_stage")
+changed_files_list=$(mktemp)
+trap 'rm -f "$changed_files_list"' EXIT
+changed_files_at "$hook_stage" > "$changed_files_list"
 
-export changed_files
+export changed_files_list
 
 require_source_directories() {
     for source_directory in "$@"; do

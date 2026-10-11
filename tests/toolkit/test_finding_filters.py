@@ -90,8 +90,9 @@ def test_changed_scope_property_keeps_exactly_the_changed_files(
         finished = shell_function(
             Path(directory_name),
             "within_scope",
-            {"check_scope": "changed", "changed_files": "\n".join(changed)},
+            {"check_scope": "changed"},
             "".join(f"{finding}\n" for finding in findings),
+            changed,
         )
 
     assert printed_lines(finished) == [
@@ -111,7 +112,8 @@ def test_directories_with_changes_property_matches_the_changed_files(
         finished = shell_function(
             Path(directory_name),
             f"directories_with_changes {' '.join(folders)}",
-            {"changed_files": "\n".join(changed)},
+            {},
+            changed_files=changed,
         )
 
     assert printed_lines(finished) == [

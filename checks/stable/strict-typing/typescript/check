@@ -9,8 +9,9 @@ echo "checks: never silence the checker - fix the type instead"
 require_binary "$node_tools/tsc" typescript
 
 silencers='@ts-ignore|@ts-expect-error|@ts-nocheck|eslint-disable'
-silencers="$silencers|/\*[[:space:]]*eslint[[:space:]]"
-silenced=$(grep -rnE "$silencers" "$@" || true)
+silencers="$silencers|/\*[[:space:]]*eslint([[:space:]]|$)"
+silencers="$silencers|^[[:space:]]*eslint[[:space:]]+[^[:space:]:]+:"
+silenced=$(grep -rniE "$silencers" "$@" || true)
 
 fail_on_findings "$silenced" \
     "the type checker is silenced here - fix the type:"
