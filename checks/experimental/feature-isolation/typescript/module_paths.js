@@ -12,8 +12,9 @@ const EMITTED_EXTENSIONS = new Map([
 ]);
 const TYPESCRIPT_EXTENSION = /(\.d)?\.(tsx?|mts|cts)$/;
 const NO_INPUTS_FOUND = 18003;
+const REQUIRE_FUNCTION = "require";
 
-const compilerOptionsByConfig = new Map();
+const projectsByConfig = new Map();
 
 function featureSegmentsOf(sourceDirectory, filePath) {
   const featuresRoot = path.join(sourceDirectory, FEATURES_DIRECTORY);
@@ -62,7 +63,7 @@ function configErrorOf(typescript, config, diagnostic) {
   return new Error(`${config}: ${message}`);
 }
 
-function compilerOptionsIn(typescript, config) {
+function projectIn(typescript, config) {
   const read = typescript.readConfigFile(config, typescript.sys.readFile);
 
   if (read.error !== undefined) {
@@ -82,22 +83,52 @@ function compilerOptionsIn(typescript, config) {
 
   if (errors.length > 0) throw configErrorOf(typescript, config, errors[0]);
 
-  return parsed.options;
+  return {
+    options: parsed.options,
+    files: new Set(parsed.fileNames.map((fileName) => path.resolve(fileName))),
+    references: parsed.projectReferences ?? [],
+  };
+}
+
+function configuredProject(typescript, config) {
+  if (!projectsByConfig.has(config)) {
+    projectsByConfig.set(config, projectIn(typescript, config));
+  }
+
+  return projectsByConfig.get(config);
+}
+
+function owningProject(typescript, config, filePath) {
+  const pending = [config];
+  const visited = new Set();
+
+  while (pending.length > 0) {
+    const candidate = pending.shift();
+
+    if (visited.has(candidate)) continue;
+    visited.add(candidate);
+
+    const project = configuredProject(typescript, candidate);
+
+    if (project.files.has(filePath)) return project;
+    for (const reference of project.references) {
+      pending.push(typescript.resolveProjectReferencePath(reference));
+    }
+  }
+
+  return configuredProject(typescript, config);
 }
 
 function compilerOptionsFor(typescript, importingFile) {
+  const filePath = path.resolve(importingFile);
   const config = typescript.findConfigFile(
-    path.dirname(path.resolve(importingFile)),
+    path.dirname(filePath),
     typescript.sys.fileExists,
   );
 
   if (config === undefined) return null;
 
-  if (!compilerOptionsByConfig.has(config)) {
-    compilerOptionsByConfig.set(config, compilerOptionsIn(typescript, config));
-  }
-
-  return compilerOptionsByConfig.get(config);
+  return owningProject(typescript, config, filePath).options;
 }
 
 function resolveProjectImport(typescript, importingFile, specifier) {
@@ -127,18 +158,66 @@ function resolveImport(typescript, importingFile, specifier) {
   return firstExistingPath([...modulesNamed(target), target]);
 }
 
-function lineNumberAt(text, position) {
-  return text.slice(0, position).split("\n").length;
+function isModuleCall(typescript, node) {
+  if (!typescript.isCallExpression(node) || node.arguments.length === 0) {
+    return false;
+  }
+
+  const callee = node.expression;
+
+  return (
+    callee.kind === typescript.SyntaxKind.ImportKeyword ||
+    (typescript.isIdentifier(callee) && callee.text === REQUIRE_FUNCTION)
+  );
+}
+
+function moduleSpecifierOf(typescript, node) {
+  if (
+    typescript.isImportDeclaration(node) ||
+    typescript.isExportDeclaration(node)
+  ) {
+    return node.moduleSpecifier;
+  }
+  if (typescript.isExternalModuleReference(node)) return node.expression;
+  if (
+    typescript.isImportTypeNode(node) &&
+    typescript.isLiteralTypeNode(node.argument)
+  ) {
+    return node.argument.literal;
+  }
+  if (isModuleCall(typescript, node)) return node.arguments[0];
+
+  return undefined;
+}
+
+function collectImports(typescript, sourceFile, node, found) {
+  const specifier = moduleSpecifierOf(typescript, node);
+
+  if (specifier !== undefined && typescript.isStringLiteralLike(specifier)) {
+    const start = sourceFile.getLineAndCharacterOfPosition(
+      specifier.getStart(sourceFile),
+    );
+    found.push({ specifier: specifier.text, lineNumber: start.line + 1 });
+  }
+
+  typescript.forEachChild(node, (child) =>
+    collectImports(typescript, sourceFile, child, found),
+  );
 }
 
 function importsIn(typescript, filePath) {
   const text = fs.readFileSync(filePath, "utf8");
-  const scanned = typescript.preProcessFile(text, true, true);
+  const sourceFile = typescript.createSourceFile(
+    filePath,
+    text,
+    typescript.ScriptTarget.Latest,
+    true,
+  );
+  const found = [];
 
-  return scanned.importedFiles.map((reference) => ({
-    specifier: reference.fileName,
-    lineNumber: lineNumberAt(text, reference.pos),
-  }));
+  collectImports(typescript, sourceFile, sourceFile, found);
+
+  return found;
 }
 
 function moduleNameOf(sourceDirectory, filePath) {

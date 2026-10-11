@@ -4,6 +4,8 @@ set -e
 
 . "$(dirname "$0")/../layout.sh"
 
+set -- $(feature_trees "$@")
+
 echo "checks: feature isolation in php (siblings meet only in Shared)"
 
 require_binary "$php_binary" php

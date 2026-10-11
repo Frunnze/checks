@@ -4,6 +4,8 @@ set -e
 
 . "$(dirname "$0")/../layout.sh"
 
+set -- $(feature_trees "$@")
+
 echo "checks: feature isolation in typescript (siblings meet only in"
 echo "checks: shared)"
 

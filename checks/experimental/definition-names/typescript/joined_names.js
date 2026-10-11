@@ -4,6 +4,7 @@ const typescript = require(process.argv[2]);
 
 const JOINED_NAME = /(And|Or)[A-Z]/;
 const MEMBER_NAME = /^[a-z_$]/;
+const PRIVATE_PREFIX = /^#/;
 
 function isFunctionValue(node) {
   return (
@@ -43,12 +44,17 @@ function isMemberDefinition(node) {
   );
 }
 
-function joinedNameOf(node) {
-  if (node.name === undefined || !typescript.isIdentifier(node.name)) {
-    return null;
-  }
+function isPlainName(name) {
+  return (
+    name !== undefined &&
+    (typescript.isIdentifier(name) || typescript.isPrivateIdentifier(name))
+  );
+}
 
-  const name = node.name.text;
+function joinedNameOf(node) {
+  if (!isPlainName(node.name)) return null;
+
+  const name = node.name.text.replace(PRIVATE_PREFIX, "");
 
   if (!JOINED_NAME.test(name)) return null;
   if (isNamedDeclaration(node)) return node.name;

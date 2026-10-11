@@ -1,3 +1,11 @@
+feature_trees() {
+    for source_directory in "$@"; do
+        if ! is_tests_folder "$source_directory"; then
+            echo "$source_directory"
+        fi
+    done
+}
+
 require_feature_layout() {
     features_folder=$1
     shift
