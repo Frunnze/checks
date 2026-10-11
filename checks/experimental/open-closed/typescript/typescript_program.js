@@ -17,7 +17,7 @@ function failOnDiagnostics(typescript, config, diagnostics) {
   throw new Error(`${config}: ${message}`);
 }
 
-function configuredOptions(typescript, config) {
+function configuredProject(typescript, config) {
   const read = typescript.readConfigFile(config, typescript.sys.readFile);
   const readErrors = read.error === undefined ? [] : [read.error];
 
@@ -33,11 +33,43 @@ function configuredOptions(typescript, config) {
 
   failOnDiagnostics(typescript, config, parsed.errors);
 
-  return parsed.options;
+  const files = new Set(
+    parsed.fileNames.map((fileName) => path.resolve(fileName)),
+  );
+
+  return {
+    options: parsed.options,
+    files,
+    references: parsed.projectReferences ?? [],
+  };
+}
+
+function owningProject(typescript, projects, config, filePath) {
+  const pending = [config];
+  const visited = new Set();
+
+  while (pending.length > 0) {
+    const candidate = pending.shift();
+
+    if (visited.has(candidate)) continue;
+    visited.add(candidate);
+    if (!projects.has(candidate)) {
+      projects.set(candidate, configuredProject(typescript, candidate));
+    }
+
+    const project = projects.get(candidate);
+
+    if (project.files.has(filePath)) return project;
+    for (const reference of project.references) {
+      pending.push(typescript.resolveProjectReferencePath(reference));
+    }
+  }
+
+  return projects.get(config);
 }
 
 function projectOptionsByFile(typescript, paths) {
-  const byConfig = new Map();
+  const projects = new Map();
   const byFile = new Map();
 
   for (const filePath of paths) {
@@ -47,11 +79,10 @@ function projectOptionsByFile(typescript, paths) {
     );
 
     if (config === undefined) continue;
-    if (!byConfig.has(config)) {
-      byConfig.set(config, configuredOptions(typescript, config));
-    }
 
-    byFile.set(filePath, byConfig.get(config));
+    const project = owningProject(typescript, projects, config, filePath);
+
+    byFile.set(filePath, project.options);
   }
 
   return byFile;

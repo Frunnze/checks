@@ -1,6 +1,7 @@
 const ts = require(process.argv[2]);
 const clientFactoryOperations = new Set(["connect", "create", "createClient", "createConnection",
   "createPool", "createTransport"]);
+const returnedTypeSuffix = "()";
 
 function isCallable(node) {
   return ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node) ||
@@ -43,6 +44,15 @@ function namesIn(name) {
       ts.isBindingElement(element) ? namesIn(element.name) : []);
   }
   return [];
+}
+
+function bindingName(node) {
+  if (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) {
+    return node.name?.text;
+  }
+  if (isCallable(node) && ts.isVariableDeclaration(node.parent) &&
+      ts.isIdentifier(node.parent.name)) return node.parent.name.text;
+  return undefined;
 }
 
 function walkScope(node, visit) {
@@ -114,7 +124,23 @@ function localBindings(node, inherited) {
       }
     }
   }
+  bindReturnedTypes(node, bindings);
   return bindings;
+}
+
+function returnedType(callable, bindings) {
+  const type = callable.type;
+  const promised = type && ts.isTypeReferenceNode(type) &&
+    qualified(type.typeName) === "Promise" && type.typeArguments?.length === 1;
+  return annotationType(promised ? type.typeArguments[0] : type, bindings);
+}
+
+function bindReturnedTypes(node, bindings) {
+  walkScope(node, child => {
+    const name = isCallable(child) ? bindingName(child) : undefined;
+    const type = name ? returnedType(child, bindings) : "";
+    if (type) bindings.set(`${name}${returnedTypeSuffix}`, type);
+  });
 }
 
 function annotationType(node, bindings) {
@@ -131,6 +157,8 @@ function annotationType(node, bindings) {
 }
 
 function calledClientType(call, bindings) {
+  const factory = qualified(call.expression) + returnedTypeSuffix;
+  if (bindings.has(factory)) return bindings.get(factory);
   const called = qualified(call.expression, bindings);
   return !called.startsWith("local:") && clientFactoryOperations.has(called.split(".").at(-1)) ? called : "";
 }
@@ -174,4 +202,5 @@ function bindAssignment(node, bindings) {
 }
 
 module.exports = { ts, isCallable, isClass, qualified, namesIn, walkScope,
-  importBindings, localBindings, bindAssignment, annotationType, assignedValue };
+  importBindings, localBindings, bindAssignment, annotationType, assignedValue,
+  bindingName, returnedType, bindReturnedTypes, returnedTypeSuffix };

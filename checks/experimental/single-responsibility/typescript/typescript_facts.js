@@ -1,5 +1,6 @@
 const fs = require("node:fs");
-const { ts, isCallable, isClass, namesIn, walkScope, importBindings, localBindings } =
+const { ts, isCallable, isClass, namesIn, walkScope, importBindings,
+  localBindings, bindingName, bindReturnedTypes } =
   require("./typescript_bindings");
 const { runtimeMetrics } = require("./typescript_metrics");
 const { classFields } = require("./typescript_fields");
@@ -14,7 +15,7 @@ function directScopes(node) {
   return scopes;
 }
 
-function scopeName(node, source) {
+function declaredName(node, source) {
   if (ts.isConstructorDeclaration(node)) return "constructor";
   if (node.name) return node.name.getText(source);
   if (node.parent && (ts.isVariableDeclaration(node.parent) ||
@@ -25,12 +26,25 @@ function scopeName(node, source) {
   return `<anonymous@${position.line + 1}:${position.character}>`;
 }
 
-function bindingName(node) {
-  if (ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) return node.name?.text;
-  if (isCallable(node) && ts.isVariableDeclaration(node.parent) && ts.isIdentifier(node.parent.name)) {
-    return node.parent.name.text;
+function objectName(object, source) {
+  let holder = object.parent;
+  while (ts.isParenthesizedExpression(holder) || ts.isAsExpression(holder) ||
+      ts.isSatisfiesExpression(holder)) holder = holder.parent;
+  if (ts.isVariableDeclaration(holder) && ts.isIdentifier(holder.name)) {
+    return holder.name.text;
   }
-  return undefined;
+  if (!ts.isPropertyAssignment(holder) ||
+      !ts.isObjectLiteralExpression(holder.parent)) return "";
+  const outer = objectName(holder.parent, source);
+  return outer && `${outer}.${holder.name.getText(source)}`;
+}
+
+function scopeName(node, source) {
+  const name = declaredName(node, source);
+  const member = ts.isPropertyAssignment(node.parent) ? node.parent : node;
+  const object = ts.isObjectLiteralExpression(member.parent)
+    ? objectName(member.parent, source) : "";
+  return object ? `${object}.${name}` : name;
 }
 
 function definitionBody(name, line, owner) {
@@ -133,15 +147,16 @@ function factsFor(filePath) {
       bindings.delete(statement.name.text);
     }
   }
+  bindReturnedTypes(source, bindings);
   const facts = [], owners = [{ name: "<module>", line: 1, kind: "module" }];
   const moduleBindings = new Map(bindings);
   facts.push(runtimeMetrics(source, { body: source, parameters: [] },
     definitionBody("<module-body>", 1, "<module>"), moduleBindings, globals, new Set()));
+  const exported = moduleExports(source, scopeName, moduleBindings);
   // Unresolved module values remain globals, not function-local shadows.
   for (const [name, value] of moduleBindings) {
     if (value.startsWith("local:")) moduleBindings.delete(name);
   }
-  const exported = moduleExports(source, scopeName, moduleBindings);
   collectScope(source, source, "<module>", moduleBindings, globals, facts, owners);
   return { path: filePath, callables: facts, owners, ...project, ...exported };
 }

@@ -1,11 +1,22 @@
 const { ts, annotationType, assignedValue, bindAssignment, localBindings,
-  qualified, walkScope } = require("./typescript_bindings");
+  qualified, walkScope, returnedType, returnedTypeSuffix } =
+  require("./typescript_bindings");
+
+function isStatic(member) {
+  return member.modifiers?.some(modifier =>
+    modifier.kind === ts.SyntaxKind.StaticKeyword);
+}
 
 function classFields(node, inherited) {
   const fields = new Map(), declared = new Set(), directTargets = new Set();
   for (const member of node.members) {
-    if (!ts.isPropertyDeclaration(member) || member.modifiers?.some(modifier =>
-      modifier.kind === ts.SyntaxKind.StaticKeyword)) continue;
+    if (!ts.isMethodDeclaration(member) || isStatic(member) ||
+        !member.name.text) continue;
+    const type = returnedType(member, inherited);
+    if (type) fields.set(member.name.text + returnedTypeSuffix, type);
+  }
+  for (const member of node.members) {
+    if (!ts.isPropertyDeclaration(member) || isStatic(member)) continue;
     const name = member.name.text;
     if (!name) continue;
     const annotation = annotationType(member.type, inherited);

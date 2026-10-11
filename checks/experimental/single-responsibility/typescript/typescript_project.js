@@ -1,21 +1,45 @@
 const path = require("node:path");
 const { ts, isCallable, isClass, qualified, namesIn, annotationType } = require("./typescript_bindings");
 
-const optionsCache = new Map();
+const projectsCache = new Map();
 
-function compilerOptions(filePath) {
-  const config = process.argv[3] || ts.findConfigFile(path.dirname(path.resolve(filePath)), ts.sys.fileExists);
-  if (!config) return { options: { moduleResolution: ts.ModuleResolutionKind.Node10 }, config: null };
-  if (!optionsCache.has(config)) {
+function configuredProject(config) {
+  if (!projectsCache.has(config)) {
     const read = ts.readConfigFile(config, ts.sys.readFile);
     if (read.error) throw new Error(`${config}: ${ts.flattenDiagnosticMessageText(read.error.messageText, " ")}`);
     const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, path.dirname(config), undefined, config);
     // The CLI selects the files to analyze, independently of tsconfig include/exclude.
     const errors = parsed.errors.filter(error => error.code !== 18003);
     if (errors.length) throw new Error(`${config}: ${ts.flattenDiagnosticMessageText(errors[0].messageText, " ")}`);
-    optionsCache.set(config, { options: parsed.options, config });
+    const files = new Set(parsed.fileNames.map(fileName =>
+      path.resolve(fileName)));
+    projectsCache.set(config, { options: parsed.options, config, files,
+      references: parsed.projectReferences ?? [] });
   }
-  return optionsCache.get(config);
+  return projectsCache.get(config);
+}
+
+function owningProject(config, filePath) {
+  const pending = [config], visited = new Set();
+  while (pending.length) {
+    const candidate = pending.shift();
+    if (visited.has(candidate)) continue;
+    visited.add(candidate);
+    const project = configuredProject(candidate);
+    if (project.files.has(filePath)) return project;
+    for (const reference of project.references) {
+      pending.push(ts.resolveProjectReferencePath(reference));
+    }
+  }
+  return configuredProject(config);
+}
+
+function compilerOptions(filePath) {
+  const file = path.resolve(filePath);
+  const config = process.argv[3] ||
+    ts.findConfigFile(path.dirname(file), ts.sys.fileExists);
+  if (!config) return { options: { moduleResolution: ts.ModuleResolutionKind.Node10 }, config: null };
+  return owningProject(config, file);
 }
 
 function projectModules(source) {
@@ -49,10 +73,18 @@ function moduleExports(source, scopeName, bindings) {
           }
         }
       }
+    } else if ((isCallable(statement) || isClass(statement)) &&
+               statement.name) {
+      declarations.set(statement.name.text,
+        `<module>.${scopeName(statement, source)}`);
     }
   }
   function local(name) {
-    return declarations.get(name) ?? (bindings.has(name) ? { reference: bindings.get(name) } : `<module>.${name}`);
+    if (declarations.has(name)) return declarations.get(name);
+    const value = bindings.get(name) ?? `local:${name}`;
+    if (!value.startsWith("local:")) return { reference: value };
+    const target = value.slice("local:".length);
+    return declarations.get(target) ?? `<module>.${target}`;
   }
   for (const statement of source.statements) {
     if (ts.isExportDeclaration(statement)) {
