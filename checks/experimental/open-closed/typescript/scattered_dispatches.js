@@ -36,6 +36,25 @@ function namedType(type, displayPathFor) {
   };
 }
 
+function memberOf(typescript, checker, subject) {
+  if (typescript.isPropertyAccessExpression(subject)) {
+    return { owner: subject.expression, name: subject.name.text };
+  }
+  if (!typescript.isIdentifier(subject)) return undefined;
+
+  const declaration = checker.getSymbolAtLocation(subject)?.valueDeclaration;
+
+  if (declaration === undefined) return undefined;
+  if (!typescript.isBindingElement(declaration)) return undefined;
+  if (!typescript.isObjectBindingPattern(declaration.parent)) return undefined;
+
+  const property = declaration.propertyName ?? declaration.name;
+
+  if (!typescript.isIdentifier(property)) return undefined;
+
+  return { owner: declaration.parent, name: property.text };
+}
+
 function axisFor(context, subject) {
   const { typescript, checker, displayPathFor } = context;
   const valueType = checker.getTypeAtLocation(subject);
@@ -43,14 +62,16 @@ function axisFor(context, subject) {
 
   if (valueName !== undefined) return valueName;
 
-  if (typescript.isPropertyAccessExpression(subject)) {
-    const ownerType = checker.getTypeAtLocation(subject.expression);
+  const member = memberOf(typescript, checker, subject);
+
+  if (member !== undefined) {
+    const ownerType = checker.getTypeAtLocation(member.owner);
     const ownerName = namedType(ownerType, displayPathFor);
 
     if (ownerName !== undefined) {
       return {
-        key: `${ownerName.key}.${subject.name.text}`,
-        label: `${ownerName.label}.${subject.name.text}`,
+        key: `${ownerName.key}.${member.name}`,
+        label: `${ownerName.label}.${member.name}`,
       };
     }
   }

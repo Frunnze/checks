@@ -101,10 +101,13 @@ function moduleExports(source, scopeName, bindings) {
       }
     } else if (ts.isExportAssignment(statement)) {
       let expression = statement.expression;
-      while (ts.isParenthesizedExpression(expression)) expression = expression.expression;
+      while (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression) ||
+          ts.isSatisfiesExpression(expression)) expression = expression.expression;
       const name = qualified(expression);
       const target = isCallable(expression) || isClass(expression)
-        ? `<module>.${scopeName(expression, source)}` : name ? local(name) : undefined;
+        ? `<module>.${scopeName(expression, source)}`
+        : ts.isObjectLiteralExpression(expression) ? "<module>.default"
+          : name ? local(name) : undefined;
       if (statement.isExportEquals) exportEquals = target;
       else if (target) exports.default = target;
     } else if (statement.modifiers?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword)) {

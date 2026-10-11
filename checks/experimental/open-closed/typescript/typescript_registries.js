@@ -52,21 +52,22 @@ function registriesIn(
         node.type === undefined
           ? undefined
           : recordArguments(typescript, node.type);
+      const keyType =
+        typeArguments === undefined
+          ? undefined
+          : checker.getTypeFromTypeNode(typeArguments[0]);
+      const domain =
+        keyType === undefined ? undefined : literalDomain(typescript, keyType);
 
-      if (typeArguments !== undefined) {
-        const keyType = checker.getTypeFromTypeNode(typeArguments[0]);
-        const domain = literalDomain(typescript, keyType);
-
-        if (domain !== undefined) {
-          const valueType = checker.getTypeFromTypeNode(typeArguments[1]);
-          add(
-            sourceFile,
-            node,
-            domain,
-            namedType(keyType),
-            containsCallable(checker, valueType, typeArguments[1]),
-          );
-        }
+      if (domain !== undefined) {
+        const valueType = checker.getTypeFromTypeNode(typeArguments[1]);
+        add(
+          sourceFile,
+          node,
+          domain,
+          namedType(keyType),
+          containsCallable(checker, valueType, typeArguments[1]),
+        );
       } else {
         const objectKeys = objectDomain(typescript, checker, node.initializer);
         const descriptor = descriptorArray(

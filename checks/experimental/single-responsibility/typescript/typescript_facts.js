@@ -33,6 +33,7 @@ function objectName(object, source) {
   if (ts.isVariableDeclaration(holder) && ts.isIdentifier(holder.name)) {
     return holder.name.text;
   }
+  if (ts.isExportAssignment(holder)) return "default";
   if (!ts.isPropertyAssignment(holder) ||
       !ts.isObjectLiteralExpression(holder.parent)) return "";
   const outer = objectName(holder.parent, source);
@@ -155,7 +156,7 @@ function factsFor(filePath) {
   const exported = moduleExports(source, scopeName, moduleBindings);
   // Unresolved module values remain globals, not function-local shadows.
   for (const [name, value] of moduleBindings) {
-    if (value.startsWith("local:")) moduleBindings.delete(name);
+    if (value === `local:${name}`) moduleBindings.delete(name);
   }
   collectScope(source, source, "<module>", moduleBindings, globals, facts, owners);
   return { path: filePath, callables: facts, owners, ...project, ...exported };

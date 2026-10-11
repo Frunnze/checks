@@ -61,6 +61,9 @@ function moduleConstantFrom(identifier, checker) {
 
 function stringFrom(node, checker) {
   if (typescript.isIdentifier(node)) return moduleConstantFrom(node, checker);
+  if (typescript.isPropertyAccessExpression(node)) {
+    return moduleConstantFrom(node.name, checker);
+  }
 
   return stringValue(typescript, node);
 }
