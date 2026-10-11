@@ -23,9 +23,7 @@ def effect_call_graph(parsed: list[dict]) -> dict:
         path = item["path"]
         for fact in item["facts"]:
             caller = (path, fact.name)
-            if counts[caller] != 1:
-                continue
-            graph[caller] = set()
+            graph.setdefault(caller, set())
             for block in fact.flow:
                 targets = {(path, name) for name in block.get("links", [])}
                 for call in block["calls"]:

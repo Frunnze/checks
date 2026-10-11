@@ -1,7 +1,13 @@
 import ast
+import builtins
 from collections.abc import Iterator
 
-from python_qualified_names import annotation_type, qualified
+from python_qualified_names import (
+    RETURNED_TYPE_SUFFIX,
+    annotation_type,
+    qualified,
+    returned_client_type,
+)
 from srp_effects import is_catalogued_client
 
 SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
@@ -19,7 +25,8 @@ CLIENT_FACTORY_OPERATIONS = frozenset(
         "create_connection",
     }
 )
-RETURNED_TYPE_SUFFIX = "()"
+STAR_IMPORT = "*"
+BUILTIN_NAMES = frozenset(dir(builtins))
 
 
 def scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
@@ -42,10 +49,40 @@ def imports_in(node: ast.AST) -> dict[str, str]:
         elif isinstance(child, ast.ImportFrom):
             prefix = "." * child.level + (child.module or "")
             for alias in child.names:
+                if alias.name == STAR_IMPORT:
+                    continue
                 separator = "." if child.module else ""
                 bindings[alias.asname or alias.name] = (
                     f"{prefix}{separator}{alias.name}"
                 )
+    return bindings
+
+
+def star_imports(node: ast.AST) -> list[str]:
+    modules = []
+    for child in scope_nodes(node):
+        if (
+            isinstance(child, ast.ImportFrom)
+            and child.module
+            and child.names[0].name == STAR_IMPORT
+        ):
+            modules.append("." * child.level + child.module)
+    return modules
+
+
+def star_import_bindings(tree: ast.Module) -> dict[str, str]:
+    modules = star_imports(tree)
+    if len(modules) != 1:
+        return {}
+    bound = set(local_bindings(tree, {})) | BUILTIN_NAMES
+    bindings: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id not in bound
+        ):
+            bindings[node.id] = f"{modules[0]}.{node.id}"
     return bindings
 
 
@@ -79,7 +116,11 @@ def returned_type_bindings(
 
 
 def module_bindings(tree: ast.Module) -> dict[str, str]:
-    bindings = {"open": "builtins.open", **imports_in(tree)}
+    bindings = {
+        "open": "builtins.open",
+        **star_import_bindings(tree),
+        **imports_in(tree),
+    }
     returned_types = returned_type_bindings(tree, bindings)
     return {**bindings, **returned_types}
 
@@ -115,9 +156,9 @@ def local_bindings(
 
 
 def called_client_type(call: ast.Call, bindings: dict[str, str]) -> str:
-    returned_type_key = qualified(call.func) + RETURNED_TYPE_SUFFIX
-    if returned_type_key in bindings:
-        return bindings[returned_type_key]
+    client_type = returned_client_type(call, bindings)
+    if client_type:
+        return client_type
     resolved = qualified(call, bindings)
     operation = resolved.rsplit(".", 1)[-1]
     constructed = operation.removeprefix("local:")[:1].isupper()

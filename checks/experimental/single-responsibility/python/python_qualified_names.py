@@ -1,6 +1,15 @@
 import ast
 
 PATH_MODULE_PREFIX = "pathlib."
+RETURNED_TYPE_SUFFIX = "()"
+
+
+def returned_client_type(
+    call: ast.Call, bindings: dict[str, str] | None
+) -> str:
+    if bindings is None:
+        return ""
+    return bindings.get(qualified(call.func) + RETURNED_TYPE_SUFFIX, "")
 
 
 def qualified(
@@ -18,7 +27,8 @@ def qualified(
         base = qualified(node.value, bindings)
         return f"{base}.{node.attr}" if base else ""
     if isinstance(node, ast.Call):
-        return qualified(node.func, bindings)
+        client_type = returned_client_type(node, bindings)
+        return client_type or qualified(node.func, bindings)
     if isinstance(node, ast.Subscript):
         return qualified(node.value, bindings)
     if isinstance(node, ast.BinOp) and bindings is not None:

@@ -4,6 +4,7 @@ PYTHON_ROOT_MARKERS = ("pyproject.toml", "setup.cfg", "setup.py")
 TYPESCRIPT_ROOT_MARKERS = ("package.json", "tsconfig.json")
 SOURCE_DIRECTORY_NAME = "src"
 PACKAGE_MARKER = "__init__.py"
+STAR_EXPORTS = "*"
 
 
 def deepest_root(path: Path, roots: list[Path]) -> Path | None:
@@ -33,17 +34,20 @@ def source_root(
         if path.suffix == ".py"
         else TYPESCRIPT_ROOT_MARKERS
     )
+    topmost_package = None
     for parent in path.parents:
         if not parent.is_relative_to(scan_root):
             break
         if is_marked_source_root(parent, markers):
             return parent
-    package = path.parent
+        if (parent / PACKAGE_MARKER).is_file():
+            topmost_package = parent
+    if topmost_package is None:
+        return scan_root
+    package = topmost_package
     while (package / PACKAGE_MARKER).is_file():
         package = package.parent
-    if package != path.parent:
-        return package
-    return scan_root
+    return package
 
 
 class ImportResolver:
@@ -103,13 +107,16 @@ class ImportResolver:
             if character != ".":
                 continue
             imported = root.joinpath(*reference[:index].split("."))
+            deeper_modules = set()
             for alternative in (
                 Path(str(imported) + ".py"),
                 imported / "__init__.py",
             ):
                 target = self.absolute.get(alternative.resolve())
-                if target and self.roots[target] == root:
-                    candidates.add((target, reference[index + 1 :]))
+                if target and self.roots[target].is_relative_to(root):
+                    deeper_modules.add((target, reference[index + 1 :]))
+            if deeper_modules:
+                candidates = deeper_modules
         return candidates
 
     def exported(self, path: str, symbol: str, seen: frozenset) -> set:
@@ -134,8 +141,14 @@ class ImportResolver:
             return {(path, full)}
         candidates = set()
         if head != "default":
-            for module in item.get("export_stars", []):
+            for module in self.star_modules(path):
                 candidates.update(
                     self.references(path, module + "." + symbol, seen)
                 )
         return candidates
+
+    def star_modules(self, path: str) -> list[str]:
+        item = self.files[path]
+        if "export_stars" in item:
+            return item["export_stars"]
+        return item.get("exports", {}).get(STAR_EXPORTS, [])

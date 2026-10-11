@@ -9,11 +9,13 @@ from python_bindings import (
     module_bindings,
     qualified,
     scope_nodes,
+    star_imports,
 )
 from python_definition_time import collect_definition_body, direct_scopes
 from python_fields import class_fields
 from python_metrics import RuntimeMetrics
 from python_parsing import parse_python_module
+from srp_imports import STAR_EXPORTS
 from srp_metrics import CallableFacts
 
 
@@ -198,6 +200,7 @@ def python_facts(
                 exports[name] = {"reference": value}
             elif value.removeprefix("local:") in declarations:
                 exports[name] = "<module>." + value.removeprefix("local:")
+        exports[STAR_EXPORTS] = star_imports(tree)
     bindings = {
         name: value
         for name, value in collector.bindings.items()

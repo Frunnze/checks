@@ -16,14 +16,15 @@ def canonical_reference(resolver, path, reference, seen=frozenset()):
         head, separator, tail = symbol.partition(".")
         item = resolver.files[target]
         export = item.get("exports", {}).get(head)
+        stars = resolver.star_modules(target)
         if isinstance(export, dict):
             values.add(
                 canonical_reference(
                     resolver, target, export["reference"] + separator + tail, seen
                 )
             )
-        elif export is None and item.get("export_stars") and head != "default":
-            for module in item["export_stars"]:
+        elif export is None and stars and head != "default":
+            for module in stars:
                 values.add(
                     canonical_reference(resolver, target, module + "." + symbol, seen)
                 )
