@@ -73,8 +73,7 @@ def annotation_type(
             return union_type(values, bindings, depth + 1)
     if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
         return union_type([node.left, node.right], bindings, depth + 1)
-    resolved = qualified(node, bindings)
-    return resolved if resolved and not resolved.startswith("local:") else ""
+    return qualified(node, bindings)
 
 
 def union_type(

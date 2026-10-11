@@ -14,8 +14,13 @@ AI_PREFIXES = (
 AI_OPERATIONS = {
     "create",
     "generate",
+    "generate_content",
     "complete",
+    "completion",
+    "acompletion",
     "chat",
+    "chat_completion",
+    "text_generation",
     "invoke",
     "stream",
     "predict",

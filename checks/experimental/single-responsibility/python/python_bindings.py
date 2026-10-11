@@ -167,6 +167,13 @@ def called_client_type(call: ast.Call, bindings: dict[str, str]) -> str:
     return ""
 
 
+def imported_callee(call: ast.Call, bindings: dict[str, str]) -> str:
+    resolved = qualified(call.func, bindings)
+    if resolved.startswith("local:") or is_catalogued_client(resolved):
+        return ""
+    return resolved
+
+
 def assigned_value(value: ast.AST | None, bindings: dict[str, str]) -> str:
     if isinstance(value, ast.Await):
         return assigned_value(value.value, bindings)
@@ -180,7 +187,9 @@ def assigned_value(value: ast.AST | None, bindings: dict[str, str]) -> str:
     }:
         return annotation_type(value, bindings)
     if isinstance(value, ast.Call):
-        return called_client_type(value, bindings)
+        return called_client_type(value, bindings) or imported_callee(
+            value, bindings
+        )
     return qualified(value, bindings)
 
 
@@ -197,7 +206,11 @@ def bind_assignment(node: ast.AST, bindings: dict[str, str]) -> None:
         return
     resolved = assigned_value(value, bindings)
     if isinstance(node, ast.AnnAssign):
-        resolved = annotation_type(node.annotation, bindings) or resolved
+        annotation = annotation_type(node.annotation, bindings)
+        if annotation.startswith("local:"):
+            resolved = resolved or annotation
+        else:
+            resolved = annotation or resolved
     for target in targets:
         if isinstance(target, (ast.Name, ast.Attribute)):
             name = qualified(target)

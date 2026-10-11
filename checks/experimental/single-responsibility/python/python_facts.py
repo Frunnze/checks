@@ -3,6 +3,7 @@ from pathlib import Path
 
 from python_bindings import (
     FUNCTIONS,
+    RETURNED_TYPE_SUFFIX,
     bound_names,
     imports_in,
     local_bindings,
@@ -25,6 +26,25 @@ def scope_name(node: ast.AST) -> str:
     return node.name
 
 
+def replaced_names_in(node: ast.AST) -> set[str]:
+    return {
+        child.id
+        for child in scope_nodes(node)
+        if isinstance(child, ast.Name)
+        and isinstance(child.ctx, (ast.Store, ast.Del))
+    }
+
+
+def definitions_in(node: ast.AST, owner: str) -> dict[str, str]:
+    replaced_names = replaced_names_in(node)
+    return {
+        child.name: f"{owner}.{child.name}"
+        for child in direct_scopes(node)
+        if isinstance(child, (ast.ClassDef, *FUNCTIONS))
+        and child.name not in replaced_names
+    }
+
+
 def collect_scope(
     node: ast.AST,
     owner: str,
@@ -35,20 +55,10 @@ def collect_scope(
     visible: dict[str, str] | None = None,
 ) -> None:
     scopes = list(direct_scopes(node))
-    replaced_names = {
-        child.id
-        for child in scope_nodes(node)
-        if isinstance(child, ast.Name)
-        and isinstance(child.ctx, (ast.Store, ast.Del))
-    }
+    replaced_names = replaced_names_in(node)
     visible = dict(visible or {})
     if not isinstance(node, ast.ClassDef):
-        visible.update(
-            (child.name, f"{owner}.{child.name}")
-            for child in scopes
-            if isinstance(child, (ast.ClassDef, *FUNCTIONS))
-            and child.name not in replaced_names
-        )
+        visible.update(definitions_in(node, owner))
         visible = {
             key: value
             for key, value in visible.items()
@@ -184,7 +194,14 @@ def python_facts(
     facts: list[CallableFacts] = []
     owners = [{"name": "<module>", "line": 1, "kind": "module"}]
     body = CallableFacts("<module-body>", 1, "<module>", client_only=True)
-    collector = RuntimeMetrics(body, dict(bindings), globals_, set(), set())
+    collector = RuntimeMetrics(
+        body,
+        dict(bindings),
+        globals_,
+        set(),
+        set(),
+        visible=definitions_in(tree, "<module>"),
+    )
     facts.append(collect_definition_body(collector, tree))
     if exports is not None:
         declarations = {
@@ -194,6 +211,9 @@ def python_facts(
         }
         for name in declarations:
             exports[name] = "<module>." + name
+        for name, value in bindings.items():
+            if name.endswith(RETURNED_TYPE_SUFFIX):
+                exports[name] = {"reference": value}
         for name in set(imports_in(tree)) | globals_:
             value = collector.bindings.get(name, "")
             if value and not value.startswith("local:"):
@@ -201,10 +221,7 @@ def python_facts(
             elif value.removeprefix("local:") in declarations:
                 exports[name] = "<module>." + value.removeprefix("local:")
         exports[STAR_EXPORTS] = star_imports(tree)
-    bindings = {
-        name: value
-        for name, value in collector.bindings.items()
-        if not value.startswith("local:")
-    }
-    collect_scope(tree, "<module>", bindings, globals_, facts, owners)
+    collect_scope(
+        tree, "<module>", collector.bindings, globals_, facts, owners
+    )
     return facts, owners

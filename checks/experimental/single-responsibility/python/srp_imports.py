@@ -67,18 +67,25 @@ class ImportResolver:
     def resolve(self, path: str, reference: str) -> list[tuple[str, str]]:
         key = (path, reference)
         if key not in self.cache:
-            targets = self.references(path, reference, frozenset())
+            targets = self.references(path, reference, frozenset(), set())
             self.cache[key] = sorted(targets) if len(targets) == 1 else []
         return self.cache[key]
 
-    def references(self, path: str, reference: str, seen: frozenset) -> set:
+    def references(
+        self, path: str, reference: str, seen: frozenset, expanded: set
+    ) -> set:
         key = (path, reference)
-        if key in seen or len(seen) >= 64 or reference.startswith("local:"):
+        if (
+            key in expanded
+            or len(seen) >= 64
+            or reference.startswith("local:")
+        ):
             return set()
+        expanded.add(key)
         seen = seen | {key}
         candidates = set()
         for target, symbol in self.module_targets(path, reference):
-            candidates.update(self.exported(target, symbol, seen))
+            candidates.update(self.exported(target, symbol, seen, expanded))
         return candidates
 
     def module_targets(self, path: str, reference: str) -> set:
@@ -113,13 +120,19 @@ class ImportResolver:
                 imported / "__init__.py",
             ):
                 target = self.absolute.get(alternative.resolve())
-                if target and self.roots[target].is_relative_to(root):
+                if (
+                    target
+                    and target != path
+                    and self.roots[target].is_relative_to(root)
+                ):
                     deeper_modules.add((target, reference[index + 1 :]))
             if deeper_modules:
                 candidates = deeper_modules
         return candidates
 
-    def exported(self, path: str, symbol: str, seen: frozenset) -> set:
+    def exported(
+        self, path: str, symbol: str, seen: frozenset, expanded: set
+    ) -> set:
         key = (path, "export:" + symbol)
         if key in seen or len(seen) >= 64:
             return set()
@@ -136,14 +149,17 @@ class ImportResolver:
             local = export + suffix
             return {(path, local)} if local in self.symbols[path] else set()
         if export:
-            return self.references(path, export["reference"] + suffix, seen)
+            return self.references(
+                path, export["reference"] + suffix, seen, expanded
+            )
         if Path(path).suffix == ".py" and full in self.symbols[path]:
             return {(path, full)}
         candidates = set()
         if head != "default":
             for module in self.star_modules(path):
+                reference = module + "." + symbol
                 candidates.update(
-                    self.references(path, module + "." + symbol, seen)
+                    self.references(path, reference, seen, expanded)
                 )
         return candidates
 

@@ -1,10 +1,13 @@
 """Follow explicit library/type re-exports without treating wrapper bodies as calls."""
 
+from python_qualified_names import RETURNED_TYPE_SUFFIX
 from srp_imports import ImportResolver
 
 
-def canonical_reference(resolver, path, reference, seen=frozenset()):
+def canonical_reference(resolver, path, reference, seen, memo):
     key = (path, reference)
+    if key in memo:
+        return memo[key]
     if key in seen or len(seen) >= 64:
         return "local:" + reference
     seen = seen | {key}
@@ -16,21 +19,24 @@ def canonical_reference(resolver, path, reference, seen=frozenset()):
         head, separator, tail = symbol.partition(".")
         item = resolver.files[target]
         export = item.get("exports", {}).get(head)
+        returned = item.get("exports", {}).get(head + RETURNED_TYPE_SUFFIX)
         stars = resolver.star_modules(target)
         if isinstance(export, dict):
-            values.add(
-                canonical_reference(
-                    resolver, target, export["reference"] + separator + tail, seen
-                )
-            )
+            exported = export["reference"] + separator + tail
+            values.add(canonical_reference(resolver, target, exported, seen, memo))
+        elif returned and tail:
+            values.add(returned["reference"] + separator + tail)
         elif export is None and stars and head != "default":
             for module in stars:
                 values.add(
-                    canonical_reference(resolver, target, module + "." + symbol, seen)
+                    canonical_reference(
+                        resolver, target, module + "." + symbol, seen, memo
+                    )
                 )
         elif export is not None:
             values.add("local:" + reference)
-    return next(iter(values)) if len(values) == 1 else "local:" + reference
+    memo[key] = next(iter(values)) if len(values) == 1 else "local:" + reference
+    return memo[key]
 
 
 def resolve_call_aliases(parsed: list[dict]) -> None:
@@ -40,7 +46,9 @@ def resolve_call_aliases(parsed: list[dict]) -> None:
         for fact in item["facts"]:
             for call in fact.calls:
                 if call not in cache:
-                    cache[call] = canonical_reference(resolver, item["path"], call)
+                    cache[call] = canonical_reference(
+                        resolver, item["path"], call, frozenset(), {}
+                    )
             fact.call_aliases = {
                 call: cache[call] for call in fact.calls if call != cache[call]
             }

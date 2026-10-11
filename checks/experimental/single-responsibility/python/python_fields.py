@@ -12,12 +12,19 @@ from python_bindings import (
 from python_qualified_names import qualified
 
 
+def refers_outside(value: str, scope_names: set[str]) -> bool:
+    if not value.startswith("local:"):
+        return True
+    return value.removeprefix("local:").split(".")[0] not in scope_names
+
+
 def class_fields(
     node: ast.ClassDef, inherited: dict[str, str]
 ) -> dict[str, str]:
     method_returned_types = returned_type_bindings(node, inherited)
     fields: dict[str, str] = dict(method_returned_types)
     declared: set[str] = set()
+    class_names = set(local_bindings(node, {}))
     for statement in node.body:
         if isinstance(statement, ast.AnnAssign) and isinstance(
             statement.target, ast.Name
@@ -28,7 +35,7 @@ def class_fields(
                 declared.add(statement.target.id)
         elif isinstance(statement, ast.Assign):
             resolved = assigned_value(statement.value, inherited)
-            if resolved and not resolved.startswith("local:"):
+            if resolved and refers_outside(resolved, class_names):
                 for target in statement.targets:
                     if isinstance(target, ast.Name):
                         fields[target.id] = resolved
@@ -40,6 +47,7 @@ def class_fields(
             continue
         receiver = positional[0].arg + "."
         bindings = local_bindings(method, inherited)
+        method_names = set(local_bindings(method, {}))
         for returned_key, returned_type in method_returned_types.items():
             bindings[receiver + returned_key] = returned_type
         for statement in method.body:
@@ -48,7 +56,7 @@ def class_fields(
             if (
                 name.startswith(receiver)
                 and name.count(".") == 1
-                and not value.startswith("local:")
+                and refers_outside(value, method_names)
             ):
                 fields.setdefault(name[len(receiver) :], value)
     for method in node.body:
