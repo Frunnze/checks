@@ -9,7 +9,8 @@ echo "checks: never silence the checker - fix the type instead"
 require_binary "$python_tools/basedpyright" basedpyright
 
 silencers='#[[:space:]]*(type:[[:space:]]*ignore'
-silencers="$silencers|pyright:[[:space:]]*(ignore|basic|standard|report))"
+silencers="$silencers|pyright:[^#]*(ignore|basic|standard|report))"
+silencers="$silencers|@([[:alnum:]_]+\.)*no_type_check"
 silenced=$(python_files_in $(sources_and_tests "$@") \
     | while IFS= read -r source_file; do
         grep -anHE "$silencers" "$source_file" || true

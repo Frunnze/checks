@@ -71,6 +71,11 @@ def link_toolkit_node_modules(tmp_path: Path) -> None:
     copied_modules.symlink_to(TOOLKIT / "node_modules")
 
 
+def link_toolkit_tool(tmp_path: Path, name: str) -> None:
+    tool = tmp_path / COPIED_TOOLKIT / ".venv" / "bin" / name
+    tool.symlink_to(TOOLKIT / ".venv" / "bin" / name)
+
+
 def remove_toolkit_python(tmp_path: Path) -> None:
     (tmp_path / COPIED_TOOLKIT / ".venv" / "bin" / "python").unlink()
 
@@ -129,6 +134,18 @@ def run_check(
 ) -> CheckRun:
     _write_configuration(tmp_path, check_settings or {})
 
+    return _run_toolkit(tmp_path, name)
+
+
+def run_configured(
+    tmp_path: Path, configuration: str, name: str
+) -> CheckRun:
+    _ = (tmp_path / "checks.toml").write_text(configuration, encoding="utf-8")
+
+    return _run_toolkit(tmp_path, name)
+
+
+def _run_toolkit(tmp_path: Path, name: str) -> CheckRun:
     return subprocess.run(
         ["sh", f"{COPIED_TOOLKIT}/run", name],
         cwd=tmp_path,

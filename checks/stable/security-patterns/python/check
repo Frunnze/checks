@@ -20,6 +20,7 @@ for excluded_rule in $(whitelist_entries); do
 done
 
 if ! "$python_tools/semgrep" "$@" $source_directories \
+    $(python_files_in $source_directories) \
     $(package_dockerfiles $source_directories); then
     echo "checks: semgrep found a pattern the other checks miss -" >&2
     echo "checks: fix it, or add the rule id to the whitelist of" >&2

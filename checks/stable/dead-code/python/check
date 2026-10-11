@@ -11,10 +11,12 @@ reached_names=$(mktemp -d)
 trap 'rm -rf "$reached_names"' EXIT
 whitelist_entries > "$reached_names/whitelist.py"
 
-if ! "$python_tools/vulture" "$@" "$reached_names/whitelist.py" \
-    --min-confidence 60; then
-    echo "checks: nothing reaches this code - delete it, or add" >&2
-    echo "checks: its name to [checks.dead-code] whitelist" >&2
-    echo "checks: when a framework calls it" >&2
-    exit 1
-fi
+for source_directory in "$@"; do
+    if ! "$python_tools/vulture" "$source_directory" \
+        "$reached_names/whitelist.py" --min-confidence 60; then
+        echo "checks: nothing reaches this code - delete it, or add" >&2
+        echo "checks: its name to [checks.dead-code] whitelist" >&2
+        echo "checks: when a framework calls it" >&2
+        exit 1
+    fi
+done

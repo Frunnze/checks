@@ -17,6 +17,9 @@ from check_support import (
     [
         'VALUE: int = "a"  # pyright: ignore[reportAssignmentType]\n',
         '# pyright: reportAssignmentType=false\nVALUE: int = "a"\n',
+        '# pyright: strict, reportAssignmentType=false\nVALUE: int = "a"\n',
+        "from typing import no_type_check\n\n\n@no_type_check\n"
+        'def broken() -> int:\n    return "a"\n',
     ],
 )
 def test_fails_on_a_silenced_type_error(

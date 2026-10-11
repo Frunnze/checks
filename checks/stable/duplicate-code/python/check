@@ -12,7 +12,7 @@ ignored_paths=$(whitelist_entries | paste -sd, -)
 for source_directory in "$@"; do
     if ! "$node_tools/jscpd" "$source_directory" \
         --format python \
-        --threshold 0 \
+        --exitCode 1 \
         --ignore-pattern 'import[^\n]*' \
         --ignore "${ignored_paths:-**/node_modules/**}" \
         --reporters console \
