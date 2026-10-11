@@ -3,7 +3,7 @@ from pathlib import Path
 from check_support import repository, run_configured, stage_file
 
 CONFIGURATION = (
-    'source_directories = ["api/src"]\n'
+    'source_directories = ["api/src", "api/tests"]\n'
     '[checks.api-contract]\nwhen = "pre-commit"\n'
 )
 COVERAGE_GATED_PYTHON = (

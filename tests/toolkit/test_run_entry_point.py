@@ -89,8 +89,12 @@ def test_changed_scope_checks_a_staged_file_with_a_non_ascii_name(
     assert "service/src/café.py (301 lines)" in finished.stderr
 
 
-def test_changed_scope_checks_the_tests_of_a_root_source_folder(
-    tmp_path: Path,
+@pytest.mark.parametrize(
+    "source_directories, expected_exit",
+    [('["src"]', 0), ('["src", "tests"]', 1)],
+)
+def test_changed_scope_checks_a_root_tests_folder_only_when_listed(
+    tmp_path: Path, source_directories: str, expected_exit: int
 ) -> None:
     repository(tmp_path)
     stage_file(tmp_path, "src/short.py", "VALUE = 1\n")
@@ -99,13 +103,15 @@ def test_changed_scope_checks_the_tests_of_a_root_source_folder(
 
     finished = _run(
         tmp_path,
-        'source_directories = ["src"]\n'
+        f"source_directories = {source_directories}\n"
         '[checks.file-length]\nscope = "changed"\n',
         ["--stage", "pre-commit", "file-length"],
     )
 
-    assert finished.returncode == 1
-    assert "tests/test_long.py (301 lines)" in finished.stderr
+    assert finished.returncode == expected_exit
+    assert ("tests/test_long.py (301 lines)" in finished.stderr) == bool(
+        expected_exit
+    )
 
 
 def test_changed_scope_ignores_an_old_file_that_shares_a_name_prefix(

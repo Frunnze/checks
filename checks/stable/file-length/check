@@ -8,10 +8,9 @@ echo "checks: file length (max $maximum_lines lines)"
 echo "checks: follow SRP - split a file that grew past one job"
 
 source_files=$(
-    sources=$(sources_and_tests "$@")
-    python_files_in $sources
-    typescript_files_in $sources
-    php_files_in $sources
+    python_files_in "$@"
+    typescript_files_in "$@"
+    php_files_in "$@"
 )
 checked_files=$(printf '%s\n' "$source_files" | without_whitelisted)
 

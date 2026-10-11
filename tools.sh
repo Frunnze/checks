@@ -163,6 +163,32 @@ sources_and_tests() {
     done
 }
 
+is_tests_folder() {
+    [ "$(tests_of "$1")" = "$1" ]
+}
+
+require_listed_tests() {
+    listed_tests=$(tests_of "$1")
+
+    if ! setting "checks.$check_name.source_directories" \
+        | grep -qxF -e "$listed_tests"; then
+        echo "checks: $check_name needs $listed_tests, the tests of" >&2
+        echo "checks: $1 - add it to source_directories" >&2
+        exit 1
+    fi
+}
+
+tested_sources() {
+    for source_directory in "$@"; do
+        if is_tests_folder "$source_directory"; then
+            continue
+        fi
+
+        require_listed_tests "$source_directory"
+        echo "$source_directory"
+    done
+}
+
 files_ending_in() {
     extensions=$1
     shift
@@ -270,8 +296,4 @@ package_dockerfiles() {
 generated_configuration() {
     "$toolkit_python" "$toolkit/configuration/tool_configurations.py" \
         "$configuration_file" "$1" "$2" "$project_root"
-}
-
-package_folders() {
-    existing_directories "$(basename "$1")" tests
 }

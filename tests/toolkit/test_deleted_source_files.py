@@ -5,6 +5,7 @@ from check_support import (
     link_real_python,
     repository,
     run_check,
+    run_configured,
     stage_file,
     stub_binary,
 )
@@ -54,9 +55,15 @@ def test_property_tests_survives_a_deleted_source_file(
     tmp_path: Path,
 ) -> None:
     _committed_repository(tmp_path)
-    finished = run_check(tmp_path, "property-tests")
+    finished = run_configured(
+        tmp_path,
+        'source_directories = ["user-service/src", "user-service/tests"]\n'
+        '[checks.property-tests]\nwhen = "pre-commit"\n',
+        "property-tests",
+    )
 
     assert "Traceback" not in finished.stderr
+    assert "needs user-service/tests" not in finished.stderr
 
 
 def test_linters_pylint_survives_a_deleted_source_file(

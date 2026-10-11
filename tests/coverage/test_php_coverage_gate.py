@@ -4,7 +4,7 @@ from pathlib import Path
 
 from check_support import COPIED_TOOLKIT, repository, stage_file
 
-CONFIGURATION = 'source_directories = ["plugin/src"]\n'
+CONFIGURATION = 'source_directories = ["plugin/src", "plugin/tests"]\n'
 FUNCTIONS_ONLY_SUMMARY = (
     "Code Coverage Report Summary:\n"
     "  Classes:          (0/0)\n"
@@ -21,6 +21,11 @@ def test_passes_a_fully_covered_package_without_classes(
         tmp_path,
         "plugin/src/functions.php",
         "<?php\nfunction one(): int { return 1; }\n",
+    )
+    stage_file(
+        tmp_path,
+        "plugin/tests/FunctionsTest.php",
+        "<?php\nfinal class FunctionsTest {}\n",
     )
     phpunit = tmp_path / "plugin" / "vendor" / "bin" / "phpunit"
     phpunit.parent.mkdir(parents=True)

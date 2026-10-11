@@ -9,7 +9,12 @@ language.
 1. Add `checks.toml` at the repository root:
 
    ```toml
-   source_directories = ["user-service/src", "ui-service/src"]
+   source_directories = [
+       "user-service/src",
+       "user-service/tests",
+       "ui-service/src",
+       "ui-service/tests",
+   ]
    ```
 
 2. Install it (installs the tools, turns the git hooks on, ignores `.checks/`):
@@ -22,9 +27,11 @@ language.
 3. Commit. Run by hand with `.checks/run`, or one check with
    `.checks/run linters`.
 
-Needs `python3` 3.12+, `node`, `composer` (PHP) and `gitleaks`. Tests are read
-from a `tests` folder next to each source folder. Code in an unsupported
-language is reported as unchecked.
+Needs `python3` 3.12+, `node`, `composer` (PHP) and `gitleaks`. Only the
+folders in `source_directories` are checked. `coverage`, `api-contract` and
+`property-tests` read the `tests` folder next to each source folder and fail
+unless it is listed too. Code in an unsupported language is reported as
+unchecked.
 
 ## Use it in GitHub Actions
 
@@ -69,12 +76,12 @@ enabled check over the whole repository.
 ## checks.toml
 
 ```toml
-source_directories = ["api/src", "ui/src"]
+source_directories = ["api/src", "api/tests", "ui/src", "ui/tests"]
 stable = "pre-commit"
 
 [checks.coverage]
 when = "pre-push"
-source_directories = ["api/src"]
+source_directories = ["api/src", "api/tests"]
 
 [checks.linters]
 when = "both"

@@ -5,7 +5,9 @@ set -e
 echo "checks: typescript coverage (the package's coverage script)"
 echo "checks: test first - do not write a branch no test asked for"
 
-for source_directory in "$@"; do
+tested_directories=$(tested_sources "$@")
+
+for source_directory in $tested_directories; do
     package=$(package_of "$source_directory")
     require_node_modules "$package"
 

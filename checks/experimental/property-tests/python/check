@@ -5,7 +5,9 @@ set -e
 echo "checks: property tests in python (one per definition)"
 echo "checks: design by contract - assert the guarantee, not the behaviour"
 
-findings=$(for source_directory in "$@"; do
+tested_directories=$(tested_sources "$@")
+
+findings=$(for source_directory in $tested_directories; do
     python_files_in $(sources_and_tests "$source_directory") \
         | "$toolkit_python" "$(dirname "$0")/property_test_coverage.py" \
         "$source_directory"

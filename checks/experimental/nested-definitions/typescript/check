@@ -9,7 +9,7 @@ echo "checks: keep it testable - nothing can reach a def hidden in a def"
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 
-findings=$(typescript_files_in $(sources_and_tests "$@") \
+findings=$(typescript_files_in "$@" \
     | "$node_binary" "$(dirname "$0")/nested_definitions.js" \
     "$typescript_module")
 nested_definitions=$(printf '%s\n' "$findings" | reportable_findings)

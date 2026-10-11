@@ -8,7 +8,9 @@ echo "checks: design by contract - assert the guarantee, not the behaviour"
 require_binary "$node_binary" node
 require_binary "$typescript_module" typescript
 
-findings=$(for source_directory in "$@"; do
+tested_directories=$(tested_sources "$@")
+
+findings=$(for source_directory in $tested_directories; do
     typescript_files_in $(sources_and_tests "$source_directory") \
         | "$node_binary" "$(dirname "$0")/property_test_coverage.js" \
         "$typescript_module" "$source_directory"

@@ -31,7 +31,7 @@ OVERRIDES
         set -- "$@" --ignore "$ignored_ruff_rules"
     fi
 
-    "$python_tools/ruff" "$@" $(sources_and_tests "$source_directory")
+    "$python_tools/ruff" "$@" "$source_directory"
 }
 
 for source_directory in "$@"; do

@@ -23,7 +23,7 @@ lint_package() {
     done
 
     (cd "$package" && "$node_tools/eslint" "$@" \
-        $(package_folders "$source_directory"))
+        "$(basename "$source_directory")")
 }
 
 for source_directory in "$@"; do

@@ -6,8 +6,10 @@ from check_support import (
     COPIED_TOOLKIT,
     TOOLKIT,
     link_real_python,
+    link_toolkit_tool,
     repository,
     run_check,
+    run_configured,
     stage_file,
 )
 
@@ -35,3 +37,25 @@ def test_fails_on_a_silenced_type_error(
 
     assert finished.returncode == 1
     assert "user-service/src/settings.py" in finished.stderr
+
+
+@pytest.mark.parametrize(
+    "source_directories, expected_exit",
+    [('["svc/src"]', 0), ('["svc/src", "svc/tests"]', 1)],
+)
+def test_type_checks_a_tests_folder_only_when_it_is_a_source_folder(
+    tmp_path: Path, source_directories: str, expected_exit: int
+) -> None:
+    repository(tmp_path)
+    link_real_python(tmp_path)
+    link_toolkit_tool(tmp_path, "basedpyright")
+    stage_file(tmp_path, "svc/src/value.py", "VALUE: int = 1\n")
+    stage_file(tmp_path, "svc/tests/test_value.py", 'BROKEN: int = "a"\n')
+
+    finished = run_configured(
+        tmp_path,
+        f"source_directories = {source_directories}\n",
+        "strict-typing",
+    )
+
+    assert finished.returncode == expected_exit, finished.stdout

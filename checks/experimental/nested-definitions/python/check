@@ -5,7 +5,7 @@ set -e
 echo "checks: nested definitions in python (no def inside a def)"
 echo "checks: keep it testable - nothing can reach a def hidden in a def"
 
-findings=$(python_files_in $(sources_and_tests "$@") \
+findings=$(python_files_in "$@" \
     | "$toolkit_python" "$(dirname "$0")/nested_definitions.py")
 nested_definitions=$(printf '%s\n' "$findings" | reportable_findings)
 

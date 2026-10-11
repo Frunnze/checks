@@ -11,7 +11,7 @@ require_binary "$python_tools/basedpyright" basedpyright
 silencers='#[[:space:]]*(type:[[:space:]]*ignore'
 silencers="$silencers|pyright:[^#]*(ignore|basic|standard|report))"
 silencers="$silencers|@([[:alnum:]_]+\.)*no_type_check"
-silenced=$(python_files_in $(sources_and_tests "$@") \
+silenced=$(python_files_in "$@" \
     | while IFS= read -r source_file; do
         grep -anHE "$silencers" "$source_file" || true
     done)
@@ -26,7 +26,8 @@ for source_directory in "$@"; do
     package=$(package_of "$source_directory")
 
     if ! (cd "$package" && "$python_tools/basedpyright" \
-        --pythonpath "$python_binary"); then
+        --pythonpath "$python_binary" \
+        "$(basename "$source_directory")"); then
         echo "checks: $package does not type-check" >&2
         exit 1
     fi

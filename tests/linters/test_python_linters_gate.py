@@ -53,7 +53,13 @@ def test_ruff_reads_every_option_of_its_table(
     assert finished.stdout.count("is banned") == expected_bans
 
 
-def test_lints_the_tests_beside_a_source_folder(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "source_directories, expected_exit",
+    [('["svc/src"]', 0), ('["svc/src", "svc/tests"]', 1)],
+)
+def test_lints_a_tests_folder_only_when_it_is_a_source_folder(
+    tmp_path: Path, source_directories: str, expected_exit: int
+) -> None:
     repository(tmp_path)
     link_toolkit_tool(tmp_path, "ruff")
     link_toolkit_tool(tmp_path, "pylint")
@@ -61,8 +67,10 @@ def test_lints_the_tests_beside_a_source_folder(tmp_path: Path) -> None:
     stage_file(tmp_path, "svc/tests/test_settings.py", "import os\n")
 
     finished = run_configured(
-        tmp_path, 'source_directories = ["svc/src"]\n', "linters"
+        tmp_path, f"source_directories = {source_directories}\n", "linters"
     )
 
-    assert finished.returncode == 1
-    assert "svc/tests/test_settings.py" in finished.stdout
+    assert finished.returncode == expected_exit, finished.stdout
+    assert ("svc/tests/test_settings.py" in finished.stdout) == bool(
+        expected_exit
+    )

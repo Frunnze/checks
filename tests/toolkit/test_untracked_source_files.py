@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from check_support import link_real_python, repository, run_check
+from check_support import (
+    link_real_python,
+    repository,
+    run_check,
+    run_configured,
+)
 
 NESTED_DEFINITION = (
     "def outer(value):\n"
@@ -49,7 +54,13 @@ def test_property_tests_sees_a_file_never_added_to_git(
         "user-service/src/plain.py",
         "def score(value):\n    return value\n",
     )
-    finished = run_check(tmp_path, "property-tests")
+    _written(tmp_path, "user-service/tests/test_plain.py", "")
+    finished = run_configured(
+        tmp_path,
+        'source_directories = ["user-service/src", "user-service/tests"]\n'
+        '[checks.property-tests]\nwhen = "pre-commit"\n',
+        "property-tests",
+    )
 
     assert finished.returncode == 1
     assert "score needs a property test" in finished.stderr
