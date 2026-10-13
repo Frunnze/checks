@@ -101,6 +101,7 @@ def _project(workspace: Path) -> Path:
 def _environment(workspace: Path, cdpath: str) -> dict[str, str]:
     shims = workspace / "shims"
     _executable(shims / "npm", "#!/bin/sh\nexit 0\n")
+    _executable(shims / "composer", "#!/bin/sh\nexit 0\n")
     _executable(shims / "python3", VENV_SHIM)
     elsewhere = workspace / "elsewhere"
     project = workspace / "project"

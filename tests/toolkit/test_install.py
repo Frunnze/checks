@@ -59,6 +59,7 @@ def _project(tmp_path: Path) -> Path:
 def _install(tmp_path: Path, project: Path) -> None:
     shims = tmp_path / "shims"
     _stub(shims / "npm")
+    _stub(shims / "composer")
     environment = {**os.environ, "PATH": f"{shims}:{os.environ['PATH']}"}
 
     _ = subprocess.run(

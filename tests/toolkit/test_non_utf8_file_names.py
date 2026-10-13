@@ -21,12 +21,32 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
 from hypothesis import example, given, settings
 from hypothesis import strategies as st
 
 from check_support import link_real_python, repository, run_check
 
 FINDER_CHECKS = ("open-closed", "dependency-inversion", "nested-definitions")
+NON_UTF8_NAME = os.fsdecode(b"caf\xe9.py")
+
+
+def _file_system_accepts_non_utf8_names() -> bool:
+    with tempfile.TemporaryDirectory() as directory:
+        probe = Path(directory) / NON_UTF8_NAME
+
+        try:
+            probe.touch()
+        except OSError:
+            return False
+
+    return True
+
+
+pytestmark = pytest.mark.skipif(
+    not _file_system_accepts_non_utf8_names(),
+    reason="the file system refuses file names that are not UTF-8",
+)
 
 
 @given(
