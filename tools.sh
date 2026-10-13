@@ -151,6 +151,28 @@ package_of() {
     dirname "$1"
 }
 
+packages_of() {
+    for source_directory in "$@"; do
+        package_of "$source_directory"
+    done | sort -u
+}
+
+package_folders() {
+    wanted_package=$1
+    shift
+
+    for source_directory in "$@"; do
+        if [ "$(package_of "$source_directory")" = "$wanted_package" ]; then
+            echo "$source_directory"
+        fi
+    done
+}
+
+package_root_files() {
+    "$toolkit_python" "$toolkit/configuration/root_files.py" \
+        "$1" "$project_root"
+}
+
 tests_of() {
     package=$(package_of "$1")
 

@@ -8,6 +8,12 @@ echo "checks: cannot see)"
 require_binary "$python_tools/semgrep" semgrep
 
 source_directories="$*"
+root_files=""
+
+for package in $(packages_of "$@"); do
+    package_files=$(package_root_files "$package")
+    root_files="$root_files $package_files"
+done
 
 set -- scan --error --quiet --metrics off
 
@@ -19,7 +25,7 @@ for excluded_rule in $(whitelist_entries); do
     set -- "$@" --exclude-rule "$excluded_rule"
 done
 
-if ! "$python_tools/semgrep" "$@" $source_directories \
+if ! "$python_tools/semgrep" "$@" $source_directories $root_files \
     $(php_files_in $source_directories) \
     $(package_dockerfiles $source_directories); then
     echo "checks: semgrep found a pattern the other checks miss -" >&2

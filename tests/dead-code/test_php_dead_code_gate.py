@@ -1,17 +1,13 @@
 from pathlib import Path
 
 from check_support import (
-    COPIED_TOOLKIT,
-    TOOLKIT,
-    repository,
+    WORDPRESS_MANIFEST,
+    php_package,
     run_configured,
     stage_file,
 )
 
 PLUGIN_CONFIGURATION = 'source_directories = ["api/src", "api/tests"]\n'
-PLUGIN_MANIFEST = (
-    '{"type": "wordpress-plugin", "require": {"php": ">=8.1"}}\n'
-)
 CLOCK = "<?php\ninterface Clock {\n    public function now(): int;\n}\n"
 GREETER = (
     "<?php\nfinal class Greeter {\n"
@@ -35,13 +31,7 @@ UNCALLED_METHOD = (
 
 
 def _plugin(tmp_path: Path) -> None:
-    repository(tmp_path)
-    copied_vendor = tmp_path / COPIED_TOOLKIT / "vendor"
-    copied_vendor.symlink_to(TOOLKIT / "vendor")
-    autoload = tmp_path / "api" / "vendor" / "autoload.php"
-    autoload.parent.mkdir(parents=True)
-    _ = autoload.write_text("<?php\n", encoding="utf-8")
-    stage_file(tmp_path, "api/composer.json", PLUGIN_MANIFEST)
+    php_package(tmp_path, "api", WORDPRESS_MANIFEST)
     stage_file(tmp_path, "api/src/Clock.php", CLOCK)
     stage_file(tmp_path, "api/src/Greeter.php", GREETER)
     stage_file(tmp_path, "api/src/SystemClock.php", SYSTEM_CLOCK)

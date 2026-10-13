@@ -28,7 +28,8 @@ language.
    `.checks/run linters`.
 
 Needs `python3` 3.12+, `node`, `composer` (PHP) and `gitleaks`. Only the
-folders in `source_directories` are checked. `coverage`, `api-contract` and
+folders in `source_directories` are checked, plus the root PHP files of a
+WordPress package (below). `coverage`, `api-contract` and
 `property-tests` read the `tests` folder next to each source folder and fail
 unless it is listed too. Code in an unsupported language is reported as
 unchecked.
@@ -104,8 +105,11 @@ when = "pre-push"
 - Tools take their own options under their check, for example
   `[checks.linters.ruff]`, `[checks.linters.eslint]`, `[checks.linters.phpcs]`,
   `[checks.strict-typing.phpstan]`.
-- A PHP package with `"type": "wordpress-plugin"` in `composer.json` gets the
-  WordPress rules automatically.
+- A PHP package with `"type": "wordpress-plugin"` (or `wordpress-theme`) in
+  `composer.json` gets the WordPress rules automatically, and owns the PHP
+  files at the repository root (the plugin's main file and `uninstall.php`):
+  `linters`, `strict-typing`, `security-patterns` and `dead-code` check them
+  with the package.
 
 ## Develop
 

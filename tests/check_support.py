@@ -10,6 +10,10 @@ COPIED_TOOLKIT = ".checks-toolkit"
 TOOLKIT_FILES = ("run", "tools.sh")
 TOOLKIT_FOLDERS = ("checks", "configuration")
 IGNORED = f"{COPIED_TOOLKIT}/\n.venv/\n"
+WORDPRESS_MANIFEST = (
+    '{"type": "wordpress-plugin", "require": {"php": ">=8.1"}}\n'
+)
+LIBRARY_MANIFEST = '{"type": "library", "require": {"php": ">=8.1"}}\n'
 SOURCE_DIRECTORIES = (
     "user-service/src",
     "content-management-service/src",
@@ -69,6 +73,16 @@ def link_real_python(tmp_path: Path) -> None:
 def link_toolkit_node_modules(tmp_path: Path) -> None:
     copied_modules = tmp_path / COPIED_TOOLKIT / "node_modules"
     copied_modules.symlink_to(TOOLKIT / "node_modules")
+
+
+def php_package(tmp_path: Path, package: str, manifest: str) -> None:
+    repository(tmp_path)
+    copied_vendor = tmp_path / COPIED_TOOLKIT / "vendor"
+    copied_vendor.symlink_to(TOOLKIT / "vendor")
+    autoload = tmp_path / package / "vendor" / "autoload.php"
+    autoload.parent.mkdir(parents=True)
+    _ = autoload.write_text("<?php\n", encoding="utf-8")
+    stage_file(tmp_path, f"{package}/composer.json", manifest)
 
 
 def link_toolkit_tool(tmp_path: Path, name: str) -> None:

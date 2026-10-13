@@ -11,14 +11,17 @@ generated_rules=$(mktemp -d)
 trap 'rm -rf "$generated_rules"' EXIT
 ignored_sniffs=$(whitelisted_rules_for phpcs | paste -sd, -)
 
-for source_directory in "$@"; do
-    package=$(package_of "$source_directory")
+packages=$(packages_of "$@")
+
+for package in $packages; do
     rules="$generated_rules/phpcs.xml"
     generated_configuration phpcs "$package" > "$rules"
+    folders=$(package_folders "$package" "$@")
+    root_files=$(package_root_files "$package")
 
-    if ! (cd "$package" && "$php_tools/phpcs" -q --standard="$rules" \
+    if ! "$php_tools/phpcs" -q --standard="$rules" \
         ${ignored_sniffs:+--exclude="$ignored_sniffs"} \
-        "$(basename "$source_directory")"); then
+        $folders $root_files; then
         echo "checks: phpcs rejected $package - phpcbf fixes the" >&2
         echo "checks: layout, the rest needs a hand" >&2
         exit 1

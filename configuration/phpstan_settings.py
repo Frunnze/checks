@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from typing import cast
 
+from root_files import root_php_files
 from settings_validation import (
     ConfigurationError,
     as_list,
@@ -46,12 +47,6 @@ def php_version_of(package: Path) -> int | None:
         major_version * MAJOR_VERSION_FACTOR
         + minor_version * MINOR_VERSION_FACTOR
     )
-
-
-def root_php_files(project_root: Path) -> list[str]:
-    root_files = sorted(project_root.glob("*.php"))
-
-    return [str(path) for path in root_files]
 
 
 def dead_code_paths(
