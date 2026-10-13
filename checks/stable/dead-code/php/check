@@ -10,15 +10,17 @@ require_binary "$php_tools/phpstan" phpstan
 generated_rules=$(mktemp -d)
 trap 'rm -rf "$generated_rules"' EXIT
 
-for source_directory in "$@"; do
-    package=$(package_of "$source_directory")
+packages=$(for source_directory in "$@"; do
+    package_of "$source_directory"
+done | sort -u)
+
+for package in $packages; do
     rules="$generated_rules/phpstan-dead-code.neon"
     generated_configuration phpstan-dead-code "$package" > "$rules"
 
     if ! (cd "$package" && "$php_tools/phpstan" analyse \
         --no-progress --memory-limit=1G -c "$rules" \
-        --autoload-file vendor/autoload.php \
-        "$(basename "$source_directory")"); then
+        --autoload-file vendor/autoload.php); then
         echo "checks: nothing reaches this code in $package -" >&2
         echo "checks: delete it" >&2
         exit 1

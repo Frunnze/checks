@@ -7,12 +7,14 @@ from xml.etree import ElementTree
 from dependency_analyser_settings import dependency_analyser_configuration
 from frameworks import preset_tool_section, with_preset
 from phpstan_settings import (
+    dead_code_paths,
     derived_parameters,
     phpstan_configuration,
     scan_root_flag,
 )
 from settings import check_settings, read_configuration
 from settings_validation import (
+    SOURCE_SETTING,
     Configuration,
     ConfigurationError,
     as_list,
@@ -224,6 +226,11 @@ def phpstan_for(
     derived = derived_parameters(
         section, package, project_root, excluded_paths
     )
+
+    if check_name == "dead-code":
+        derived["paths"] = dead_code_paths(
+            section, settings[SOURCE_SETTING], locations
+        )
 
     return phpstan_configuration(section, default_neon, package, derived)
 

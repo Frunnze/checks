@@ -48,6 +48,35 @@ def php_version_of(package: Path) -> int | None:
     )
 
 
+def root_php_files(project_root: Path) -> list[str]:
+    root_files = sorted(project_root.glob("*.php"))
+
+    return [str(path) for path in root_files]
+
+
+def dead_code_paths(
+    section: dict[str, object],
+    source_directories: object,
+    locations: tuple[Path, Path],
+) -> list[str]:
+    package, project_root = locations
+    listed_directories = as_list(
+        "checks.dead-code.source_directories", source_directories
+    )
+    paths: list[str] = []
+
+    for source_directory in listed_directories:
+        folder = project_root / str(source_directory)
+
+        if folder.parent == package:
+            paths.append(str(folder))
+
+    if section.get("scan-root-files") is True:
+        paths.extend(root_php_files(project_root))
+
+    return paths
+
+
 def derived_parameters(
     section: dict[str, object],
     package: Path,
@@ -63,8 +92,7 @@ def derived_parameters(
         )
 
     if section.get("scan-root-files") is True:
-        root_files = sorted(project_root.glob("*.php"))
-        parameters["scanFiles"] = [str(path) for path in root_files]
+        parameters["scanFiles"] = root_php_files(project_root)
 
     if excluded_paths:
         parameters["excludePaths"] = [
