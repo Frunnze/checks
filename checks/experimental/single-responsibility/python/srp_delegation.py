@@ -5,6 +5,47 @@ from collections import Counter, deque
 from srp_effects import effect_domains
 from srp_imports import ImportResolver
 
+TASK_DISPATCH_METHODS = frozenset({"delay", "apply_async"})
+TASK_QUEUE_CLIENT = "celery.Task"
+MODULE_UNIT_PREFIX = "<module>."
+
+
+def mark_enqueued_tasks(parsed: list[dict]) -> None:
+    """A .delay or .apply_async call on a project function enqueues a task."""
+    resolver = ImportResolver(parsed)
+    for item in parsed:
+        units = {fact.name for fact in item["facts"]}
+        for fact in item["facts"]:
+            fact.calls = sorted(
+                set(fact.calls)
+                | enqueued_tasks(resolver, item["path"], units, fact.calls)
+            )
+            for block in fact.flow:
+                block["calls"] = sorted(
+                    set(block["calls"])
+                    | enqueued_tasks(
+                        resolver, item["path"], units, block["calls"]
+                    )
+                )
+
+
+def enqueued_tasks(
+    resolver: ImportResolver, path: str, units: set[str], calls: list[str]
+) -> set[str]:
+    enqueued = set()
+    for call in calls:
+        receiver, _, method = call.rpartition(".")
+        if method not in TASK_DISPATCH_METHODS:
+            continue
+        if receiver.startswith("local:"):
+            name = MODULE_UNIT_PREFIX + receiver.removeprefix("local:")
+            is_project_function = name in units
+        else:
+            is_project_function = bool(resolver.resolve(path, receiver))
+        if is_project_function:
+            enqueued.add(f"{TASK_QUEUE_CLIENT}.{method}")
+    return enqueued
+
 
 def effect_call_graph(parsed: list[dict]) -> dict:
     """Capture actual call sites before import aliases are canonicalized."""

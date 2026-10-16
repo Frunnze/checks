@@ -13,6 +13,7 @@ QUEUE_PREFIXES = (
     "amqplib",
 )
 QUEUE_OPERATIONS = {
+    "add",
     "send_task",
     "apply_async",
     "delay",

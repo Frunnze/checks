@@ -8,7 +8,7 @@ from python_qualified_names import (
     qualified,
     returned_client_type,
 )
-from srp_effects import is_catalogued_client
+from srp_effects import effect_domains, is_catalogued_client
 
 SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
 FUNCTIONS = (ast.FunctionDef, ast.AsyncFunctionDef)
@@ -163,6 +163,8 @@ def called_client_type(call: ast.Call, bindings: dict[str, str]) -> str:
     operation = resolved.rsplit(".", 1)[-1]
     constructed = operation.removeprefix("local:")[:1].isupper()
     if constructed or operation in CLIENT_FACTORY_OPERATIONS:
+        return resolved
+    if is_catalogued_client(resolved) and not effect_domains([resolved]):
         return resolved
     return ""
 

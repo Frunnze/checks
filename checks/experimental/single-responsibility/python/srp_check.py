@@ -7,7 +7,11 @@ from pathlib import Path
 from python_facts import python_facts
 from srp_call_aliases import resolve_call_aliases
 from srp_cohesion import owner_score
-from srp_delegation import effect_call_graph, summarize_effects
+from srp_delegation import (
+    effect_call_graph,
+    mark_enqueued_tasks,
+    summarize_effects,
+)
 from srp_imports import source_root
 from srp_inputs import SUFFIXES, source_paths, typescript_facts
 from srp_metrics import THRESHOLD, CallableFacts, callable_score
@@ -91,6 +95,7 @@ def analyze(
         item["root"] = str(
             source_root(Path(item["path"]), scan_roots, source_roots)
         )
+    mark_enqueued_tasks(parsed_files)
     effects = effect_call_graph(parsed_files)
     resolve_call_aliases(parsed_files)
     summarize_effects(parsed_files, effects)

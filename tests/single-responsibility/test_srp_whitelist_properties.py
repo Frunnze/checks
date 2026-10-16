@@ -69,7 +69,7 @@ def test_read_whitelist_property_round_trips_entities_with_or_without_bom(
         whitelist.write_text(contents, encoding="utf-8")
         entries = read_whitelist(whitelist)
 
-    key = (ANALYZED_PATH.resolve(), UNIT_KIND, UNIT_NAME)
+    key = (ANALYZED_PATH.resolve(), UNIT_KIND, UNIT_NAME, tuple(entities))
     assert entries == {key: WhitelistEntry(tuple(entities), REASON)}
 
 
@@ -99,8 +99,9 @@ def test_apply_whitelist_property_suppresses_only_exact_entity_match(
     unit_entities: list[str], entry_entities: list[str]
 ) -> None:
     reports = single_unit_reports(unit_entities)
-    key = (ANALYZED_PATH.resolve(), UNIT_KIND, UNIT_NAME)
-    entries = {key: WhitelistEntry(tuple(entry_entities), REASON)}
+    entities = tuple(entry_entities)
+    key = (ANALYZED_PATH.resolve(), UNIT_KIND, UNIT_NAME, entities)
+    entries = {key: WhitelistEntry(entities, REASON)}
 
     summary = apply_whitelist(reports, entries)
 
@@ -114,7 +115,7 @@ def test_reject_stale_entries_property_fails_only_for_analyzed_paths(
     entry_name: str, is_path_analyzed: bool
 ) -> None:
     path = ANALYZED_PATH if is_path_analyzed else UNANALYZED_PATH
-    key = (path.resolve(), UNIT_KIND, entry_name)
+    key = (path.resolve(), UNIT_KIND, entry_name, ("network",))
     entries = {key: WhitelistEntry(("network",), REASON)}
     reports = single_unit_reports(["network"])
 

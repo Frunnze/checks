@@ -5,12 +5,27 @@ from pathlib import Path
 
 CHECK_DIRECTORY = Path(__file__).resolve().parent.parent
 TOOLKIT_DIRECTORY = CHECK_DIRECTORY.parents[2]
-PRUNED = {"node_modules", "__pycache__", "dist", "build", ".git", ".venv"}
+PRUNED = {"node_modules", "__pycache__", ".git", ".venv"}
+PRUNED_WHEN_IGNORED = {"dist", "build"}
 SUFFIXES = {".py", ".ts", ".tsx", ".mts", ".cts"}
 
 
 def raise_walk_error(error: OSError) -> None:
     raise error
+
+
+def is_pruned(folder: Path) -> bool:
+    if folder.name in PRUNED:
+        return True
+    if folder.name not in PRUNED_WHEN_IGNORED:
+        return False
+    ignored = subprocess.run(
+        ["git", "check-ignore", "-q", folder.name],
+        cwd=folder.parent,
+        capture_output=True,
+        check=False,
+    )
+    return ignored.returncode == 0
 
 
 def source_paths(inputs: list[str]) -> list[Path]:
@@ -25,7 +40,9 @@ def source_paths(inputs: list[str]) -> list[Path]:
             paths.setdefault(path.resolve(), path)
         else:
             for directory, subdirs, files in path.walk(on_error=raise_walk_error):
-                subdirs[:] = [name for name in subdirs if name not in PRUNED]
+                subdirs[:] = [
+                    name for name in subdirs if not is_pruned(directory / name)
+                ]
                 for name in files:
                     source = directory / name
                     if source.suffix in SUFFIXES and not source.is_symlink():

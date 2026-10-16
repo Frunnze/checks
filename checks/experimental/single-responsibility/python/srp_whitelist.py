@@ -8,7 +8,8 @@ UNIT_KINDS = frozenset({"callable", "class", "module"})
 ENTRY_FIELDS = frozenset({"path", "kind", "name", "entities", "reason"})
 TEXT_FIELDS = ("path", "kind", "name", "reason")
 
-type WhitelistKey = tuple[Path, str, str]
+type UnitKey = tuple[Path, str, str]
+type WhitelistKey = tuple[Path, str, str, tuple[str, ...]]
 type Report = dict[str, Any]
 
 
@@ -45,7 +46,8 @@ def parse_entry(line: str) -> tuple[WhitelistKey, WhitelistEntry]:
     if fields["kind"] not in UNIT_KINDS:
         raise ValueError(f"kind must be one of {sorted(UNIT_KINDS)}")
     entities = parse_entities(fields["entities"])
-    key = (Path(fields["path"]).resolve(), fields["kind"], fields["name"])
+    path = Path(fields["path"]).resolve()
+    key = (path, fields["kind"], fields["name"], entities)
     entry = WhitelistEntry(entities=entities, reason=fields["reason"].strip())
     return key, entry
 
@@ -70,15 +72,15 @@ def read_whitelist(path: Path) -> Whitelist:
 
 def reject_stale_entries(reports: list[Report], entries: Whitelist) -> None:
     analyzed_paths: set[Path] = set()
-    analyzed_units: set[WhitelistKey] = set()
+    analyzed_units: set[UnitKey] = set()
     for report in reports:
         path = Path(report["path"]).resolve()
         analyzed_paths.add(path)
         for unit in report["units"]:
             analyzed_units.add((path, unit["kind"], unit["name"]))
     for key in entries:
-        path, kind, name = key
-        if path in analyzed_paths and key not in analyzed_units:
+        path, kind, name, _entities = key
+        if path in analyzed_paths and (path, kind, name) not in analyzed_units:
             raise ValueError(
                 f"stale SRP whitelist entry {path} {kind} {name}: "
                 "it matches no unit; remove or update it"
@@ -92,9 +94,10 @@ def apply_whitelist(reports: list[Report], entries: Whitelist) -> Report:
         path = Path(report["path"]).resolve()
         report["raw_coefficient"] = report["coefficient"]
         for unit in report["units"]:
-            entry = entries.get((path, unit["kind"], unit["name"]))
+            entities = tuple(unit["entities"])
+            entry = entries.get((path, unit["kind"], unit["name"], entities))
             unit["whitelisted"] = False
-            if entry is None or entry.entities != tuple(unit["entities"]):
+            if entry is None:
                 continue
             unit["whitelisted"] = True
             unit["whitelist_reason"] = entry.reason

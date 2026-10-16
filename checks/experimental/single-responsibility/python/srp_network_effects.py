@@ -18,11 +18,16 @@ NETWORK_PREFIXES = (
     "node:http",
     "node:https",
     "node:net",
+    "http",
+    "https",
+    "net",
     "global.fetch",
     "global.WebSocket",
     "global.XMLHttpRequest",
 )
+CALLABLE_NETWORK_MODULES = {"axios", "got", "ky", "node-fetch", "superagent"}
 NETWORK_OPERATIONS = {
+    *CALLABLE_NETWORK_MODULES,
     "get",
     "post",
     "put",

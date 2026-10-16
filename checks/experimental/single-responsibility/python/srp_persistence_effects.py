@@ -16,6 +16,7 @@ PERSISTENCE_PREFIXES = (
     "@prisma/client",
     "pg",
     "mysql2",
+    "mysql2/promise",
     "mongoose",
     "typeorm",
     "knex",
