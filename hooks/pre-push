@@ -1,2 +1,17 @@
 #!/bin/sh
+while read -r local_ref local_object remote_ref remote_object; do
+    case "$local_object" in
+        *[!0]*) ;;
+        *) continue ;;
+    esac
+
+    if [ -n "$(git rev-list -n 1 "$local_object" --not HEAD --remotes)" ]
+    then
+        echo "checks: $local_ref is not the checked-out branch, so its" >&2
+        echo "checks: commits would leave unchecked - check it out and" >&2
+        echo "checks: push it from there" >&2
+        exit 1
+    fi
+done
+
 exec "$(dirname "$0")/../run" --stage pre-push

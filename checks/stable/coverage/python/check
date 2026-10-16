@@ -11,12 +11,28 @@ python_binary=$(project_python)
 require_binary "$python_binary" "the project python ($python_binary)"
 
 tested_directories=$(tested_sources "$@")
+newline='
+'
+
+python_folders_in() {
+    python_files_in "$1" | sed 's|/[^/]*$||' | sort -u
+}
 
 for source_directory in $tested_directories; do
     package=$(package_of "$source_directory")
+    python_folders=$(python_folders_in "$source_directory")
+    set -- --cov="$(basename "$source_directory")"
+    set -f
+    IFS=$newline
 
-    (cd "$package" && "$python_binary" -m pytest tests -q \
-        --cov="$(basename "$source_directory")" \
+    for python_folder in $python_folders; do
+        set -- "$@" --cov="${python_folder#"$package"/}"
+    done
+
+    unset IFS
+    set +f
+
+    (cd "$package" && "$python_binary" -m pytest tests -q "$@" \
         --cov-branch \
         --cov-report=term-missing:skip-covered \
         --cov-fail-under="$minimum_coverage")

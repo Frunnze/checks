@@ -92,9 +92,25 @@ reportable_findings() {
 }
 
 changed_files_under() {
+    package=$(package_of "$1")
+    owned_files=$(package_root_files "$package")
+
     awk -v source="$1/" -v tests="$(tests_of "$1")/" \
-        'index($0, source) == 1 || index($0, tests) == 1' \
-        "$changed_files_list"
+        -v package="$package/" -v owned_files="$owned_files" '
+        BEGIN {
+            count = split(owned_files, names, "\n")
+
+            for (position = 1; position <= count; position++) {
+                owned[names[position]] = 1
+            }
+        }
+        {
+            in_package = package == "./" || index($0, package) == 1
+            name = package == "./" ? $0 : substr($0, length(package) + 1)
+        }
+        source == "./" || index($0, source) == 1 || index($0, tests) == 1 ||
+        ($0 in owned) || (in_package && index(name, "/") == 0)
+    ' "$changed_files_list"
 }
 
 directories_with_changes() {
@@ -224,7 +240,8 @@ files_ending_in() {
     find -H "$@" -mindepth 1 \
         -name __pycache__ -prune -o \
         -name node_modules -prune -o \
-        -type d \( -name vendor -o -name dist -o -name build \) \
+        -type d \( -name '.?*' -o -name venv -o -name vendor \
+        -o -name dist -o -name build \) \
         -exec git check-ignore -q {} \; -prune -o \
         -type f -print \
         | grep -a -E "\.($extensions)\$" \

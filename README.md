@@ -25,7 +25,9 @@ language.
    ```
 
 3. Commit. Run by hand with `.checks/run`, or one check with
-   `.checks/run linters`.
+   `.checks/run linters`. The pre-push hook checks the branch you have
+   checked out, so it refuses to push commits that branch does not hold -
+   push each branch from its own checkout.
 
 Needs `python3` 3.12+, `node`, `composer` (PHP) and `gitleaks`. Only the
 folders in `source_directories` are checked, plus the root PHP files of a
