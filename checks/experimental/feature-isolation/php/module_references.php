@@ -18,14 +18,17 @@ function root_namespace_of( string $source_directory ): string {
 		JSON_THROW_ON_ERROR
 	);
 	$autoload      = $manifest['autoload'][ AUTOLOAD_SECTION ] ?? array();
+	$folder_name   = basename( $source_directory );
 
-	foreach ( $autoload as $namespace => $directory ) {
-		if ( 'src' === rtrim( (string) $directory, '/' ) ) {
-			return (string) $namespace;
+	foreach ( $autoload as $namespace => $directories ) {
+		foreach ( (array) $directories as $directory ) {
+			if ( rtrim( (string) $directory, '/' ) === $folder_name ) {
+				return (string) $namespace;
+			}
 		}
 	}
 
-	fwrite( STDERR, "$manifest_path maps no namespace to src/\n" );
+	fwrite( STDERR, "$manifest_path maps no namespace to $folder_name/\n" );
 	exit( 1 );
 }
 
@@ -33,8 +36,22 @@ function root_namespace_of( string $source_directory ): string {
 function referenced_modules_in( string $file_path ): array {
 	$source        = (string) file_get_contents( $file_path );
 	$known_modules = modules_on_disk();
+	$aliases       = array();
 	$namespace     = '';
 	$found         = array();
+
+	foreach ( imports_in( $source ) as $import ) {
+		$aliases[ $import['alias'] ] = $import['name'];
+
+		$module = module_named( $import['name'], $known_modules );
+
+		if ( null !== $module && $module !== $file_path ) {
+			$found[] = array(
+				'module' => $module,
+				'line'   => $import['line'],
+			);
+		}
+	}
 
 	foreach ( token_get_all( $source ) as $token ) {
 		if ( ! is_array( $token ) ) {
@@ -45,7 +62,7 @@ function referenced_modules_in( string $file_path ): array {
 			$namespace = namespace_declared_in( $source );
 		}
 
-		$module = module_of_token( $token, $namespace, $known_modules );
+		$module = module_of_token( $token, $namespace, $aliases, $known_modules );
 
 		if ( null !== $module && $module !== $file_path ) {
 			$found[] = array(
@@ -60,13 +77,21 @@ function referenced_modules_in( string $file_path ): array {
 
 /**
  * @param array{0: int, 1: string, 2: int} $token
+ * @param array<string, string>            $aliases
  * @param array<string, true>              $known_modules
  */
 function module_of_token(
 	array $token,
 	string $current_namespace,
+	array $aliases,
 	array $known_modules
 ): string|null {
+	$imported_name = imported_name_of( $token, $aliases );
+
+	if ( null !== $imported_name ) {
+		return module_named( $imported_name, $known_modules );
+	}
+
 	if ( T_STRING === $token[0] && '' !== $current_namespace ) {
 		$qualified_name = $current_namespace . '\\' . $token[1];
 
@@ -74,6 +99,81 @@ function module_of_token(
 	}
 
 	return module_named( ltrim( $token[1], '\\' ), $known_modules );
+}
+
+/**
+ * @param array{0: int, 1: string, 2: int} $token
+ * @param array<string, string>            $aliases
+ */
+function imported_name_of( array $token, array $aliases ): string|null {
+	if ( T_NAME_QUALIFIED !== $token[0] ) {
+		return null;
+	}
+
+	$segments = explode( '\\', $token[1], 2 );
+	$imported = $aliases[ $segments[0] ] ?? null;
+
+	if ( null === $imported || ! isset( $segments[1] ) ) {
+		return null;
+	}
+
+	return $imported . '\\' . $segments[1];
+}
+
+/** @return list<array{name: string, alias: string, line: int}> */
+function imports_in( string $source ): array {
+	$statements = array();
+	$imports    = array();
+
+	preg_match_all(
+		'/^use\s+(?!function\b|const\b)([^;(]+);/mi',
+		$source,
+		$statements,
+		PREG_OFFSET_CAPTURE
+	);
+
+	foreach ( $statements[1] as list( $statement, $offset ) ) {
+		$line = substr_count( $source, "\n", 0, $offset ) + 1;
+
+		foreach ( imported_names_in( $statement ) as $alias => $name ) {
+			$imports[] = array(
+				'name'  => $name,
+				'alias' => (string) $alias,
+				'line'  => $line,
+			);
+		}
+	}
+
+	return $imports;
+}
+
+/** @return array<string, string> */
+function imported_names_in( string $statement ): array {
+	$group  = array();
+	$prefix = '';
+	$names  = array();
+
+	$group_pattern = '/^(.*?)\\\\?\s*\{(.*)\}$/s';
+
+	if ( 1 === preg_match( $group_pattern, trim( $statement ), $group ) ) {
+		$prefix    = trim( $group[1], " \t\n\\" ) . '\\';
+		$statement = $group[2];
+	}
+
+	foreach ( explode( ',', $statement ) as $member ) {
+		$parts = preg_split( '/\s+as\s+/i', trim( $member ) );
+
+		if ( false === $parts || '' === $parts[0] ) {
+			continue;
+		}
+
+		$name           = ltrim( $prefix . $parts[0], '\\' );
+		$segments       = explode( '\\', $name );
+		$alias          = $parts[1] ?? end( $segments );
+		$names[ $alias ] = $name;
+	}
+
+	return $names;
 }
 
 function namespace_declared_in( string $source ): string {

@@ -6,6 +6,7 @@ const PROPERTY_CALL   = 'forAll';
 const TEST_PREFIX     = 'test_';
 const PROPERTY_MARKER = '_property_';
 const MAGIC_PREFIX    = '__';
+const NAME_PATTERN    = '/^[A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff]*$/';
 
 /** @return list<array{name: string, line: int, body: list<string>}> */
 function definitions_in( string $file_path ): array {
@@ -20,7 +21,7 @@ function definitions_in( string $file_path ): array {
 		$name_index = next_meaningful_index( $tokens, $index );
 		$name       = $tokens[ $name_index ] ?? null;
 
-		if ( ! is_array( $name ) || T_STRING !== $name[0] ) {
+		if ( ! is_array( $name ) || 1 !== preg_match( NAME_PATTERN, $name[1] ) ) {
 			continue;
 		}
 
