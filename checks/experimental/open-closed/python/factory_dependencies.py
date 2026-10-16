@@ -1,7 +1,11 @@
 import ast
+import builtins
+import sys
 
 _ABSTRACT_BASES = {"ABC", "abc.ABC", "Protocol", "typing.Protocol"}
 _SEQUENCE_NODES = (ast.Tuple, ast.List)
+
+_BUILTIN_NAMES = frozenset(dir(builtins))
 
 AssignedPair = tuple[ast.expr, ast.expr | None]
 
@@ -34,7 +38,33 @@ def abstract_classes(tree: ast.Module) -> set[str]:
     return found
 
 
-def constructed_dependencies(constructor: ast.FunctionDef) -> set[str]:
+def standard_library_names(tree: ast.Module) -> set[str]:
+    found = set(_BUILTIN_NAMES)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if _is_standard_module(alias.name):
+                    found.add(alias.asname or alias.name.split(".")[0])
+        elif (
+            isinstance(node, ast.ImportFrom)
+            and node.level == 0
+            and node.module is not None
+            and _is_standard_module(node.module)
+        ):
+            for alias in node.names:
+                found.add(alias.asname or alias.name)
+
+    return found
+
+
+def _is_standard_module(module: str) -> bool:
+    return module.split(".")[0] in sys.stdlib_module_names
+
+
+def constructed_dependencies(
+    constructor: ast.FunctionDef, standard_names: set[str]
+) -> set[str]:
     dependencies: set[str] = set()
 
     for node in ast.walk(constructor):
@@ -49,7 +79,7 @@ def constructed_dependencies(constructor: ast.FunctionDef) -> set[str]:
 
             name = _expression_name(value.func)
 
-            if name is None:
+            if name is None or name.split(".")[0] in standard_names:
                 continue
 
             dependency = name.rsplit(".", 1)[-1]

@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-from python_ast_values import enum_classes
+from python_ast_values import assigned_name, enum_classes
 
 _PACKAGE_MODULE = "__init__"
 _STAR_IMPORT = "*"
@@ -11,19 +11,27 @@ ParsedModule = tuple[str, ast.Module]
 
 
 def resolved_constants(parsed: list[ParsedModule]) -> list[dict[str, str]]:
+    names = _resolved_names(parsed)
+    exported = _exported_by_location(parsed, names)
+    resolved: list[dict[str, str]] = []
+
+    for (path, tree), constants in zip(parsed, names, strict=True):
+        modules = imported_module_constants(path, tree, exported)
+        resolved.append({**modules, **constants})
+
+    return resolved
+
+
+def _resolved_names(parsed: list[ParsedModule]) -> list[dict[str, str]]:
     own = [string_constants(tree) for _path, tree in parsed]
     resolved = own
 
     for _pass in range(len(parsed)):
-        exported: dict[Path, dict[str, str]] = {}
-
-        for (path, _tree), constants in zip(parsed, resolved, strict=True):
-            exported[module_location(path)] = constants
-
+        exported = _exported_by_location(parsed, resolved)
         following: list[dict[str, str]] = []
 
         for (path, tree), constants in zip(parsed, own, strict=True):
-            imported = imported_constants(path, tree, exported)
+            imported = imported_names(path, tree, exported)
             following.append({**imported, **constants})
 
         if following == resolved:
@@ -34,12 +42,41 @@ def resolved_constants(parsed: list[ParsedModule]) -> list[dict[str, str]]:
     return resolved
 
 
+def _exported_by_location(
+    parsed: list[ParsedModule], constants: list[dict[str, str]]
+) -> dict[Path, dict[str, str]]:
+    exported: dict[Path, dict[str, str]] = {}
+
+    for (path, _tree), module_names in zip(parsed, constants, strict=True):
+        exported[module_location(path)] = module_names
+
+    return exported
+
+
 def string_constants(tree: ast.Module) -> dict[str, str]:
     found = _assigned_strings(tree.body)
 
     for name, owner in enum_classes(tree):
-        for member, value in _assigned_strings(owner.body).items():
-            found[f"{name}.{member}"] = value
+        found.update(_enum_member_values(name, owner))
+
+    return found
+
+
+def _enum_member_values(name: str, owner: ast.ClassDef) -> dict[str, str]:
+    strings = _assigned_strings(owner.body)
+    found: dict[str, str] = {}
+
+    for statement in owner.body:
+        if not isinstance(statement, (ast.Assign, ast.AnnAssign)):
+            continue
+
+        member = assigned_name(statement)
+
+        if member is None or member.startswith(_PRIVATE_PREFIX):
+            continue
+
+        member_name = f"{name}.{member}"
+        found[member_name] = strings.get(member, member_name)
 
     return found
 
@@ -50,7 +87,26 @@ def module_location(path: str) -> Path:
     return location.parent if location.name == _PACKAGE_MODULE else location
 
 
-def imported_constants(
+def imported_names(
+    path: str, tree: ast.Module, exported: dict[Path, dict[str, str]]
+) -> dict[str, str]:
+    found: dict[str, str] = {}
+
+    for statement in tree.body:
+        if not isinstance(statement, ast.ImportFrom):
+            continue
+
+        source = _imported_module(
+            path, statement.module, statement.level, exported
+        )
+
+        for alias in statement.names:
+            found.update(_renamed(source, alias))
+
+    return found
+
+
+def imported_module_constants(
     path: str, tree: ast.Module, exported: dict[Path, dict[str, str]]
 ) -> dict[str, str]:
     found: dict[str, str] = {}
@@ -63,10 +119,6 @@ def imported_constants(
         if not isinstance(statement, ast.ImportFrom):
             continue
 
-        source = _imported_module(
-            path, statement.module, statement.level, exported
-        )
-
         for alias in statement.names:
             submodule = _imported_module(
                 path,
@@ -74,7 +126,6 @@ def imported_constants(
                 statement.level,
                 exported,
             )
-            found.update(_renamed(source, alias))
             found.update(_prefixed(submodule, alias.asname or alias.name))
 
     return found

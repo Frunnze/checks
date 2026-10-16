@@ -27,11 +27,11 @@ function literalDomain(typescript, type) {
   const members = type.isUnion() ? type.types : [type];
 
   for (const member of members) {
-    if ((member.flags & typescript.TypeFlags.StringLiteral) === 0) {
+    if (!member.isStringLiteral() && !member.isNumberLiteral()) {
       return undefined;
     }
 
-    values.add(member.value);
+    values.add(String(member.value));
   }
 
   return values.size >= 2 ? values : undefined;
@@ -77,7 +77,11 @@ function propertyName(typescript, checker, node) {
   if (typescript.isComputedPropertyName(node)) {
     const keyType = checker.getTypeAtLocation(node.expression);
 
-    return keyType.isStringLiteral() ? keyType.value : undefined;
+    if (keyType.isStringLiteral() || keyType.isNumberLiteral()) {
+      return String(keyType.value);
+    }
+
+    return undefined;
   }
 
   return undefined;

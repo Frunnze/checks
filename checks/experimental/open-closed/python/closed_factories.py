@@ -1,6 +1,9 @@
 import ast
 
-from factory_dependencies import constructed_dependencies
+from factory_dependencies import (
+    constructed_dependencies,
+    standard_library_names,
+)
 from factory_hierarchy import (
     annotation_name,
     class_bases,
@@ -22,9 +25,13 @@ def closed_factories(modules: list[Module]) -> list[Factory]:
     found: list[Factory] = []
 
     for module in modules:
+        standard_names = standard_library_names(module.tree)
+
         for owner in classes_in(module.tree):
             found.extend(
-                _factory_findings(module.path, owner, bases, abstractions)
+                _factory_findings(
+                    module.path, owner, bases, abstractions, standard_names
+                )
             )
 
     return sorted(found)
@@ -35,6 +42,7 @@ def _factory_findings(
     owner: ast.ClassDef,
     bases: dict[str, set[str]],
     abstractions: set[str],
+    standard_names: set[str],
 ) -> list[Factory]:
     found: list[Factory] = []
     produced: set[str] = set()
@@ -53,7 +61,7 @@ def _factory_findings(
         if closed is not None:
             found.append(closed)
 
-    leak = _dependency_leak(path, owner, produced)
+    leak = _dependency_leak(path, owner, produced, standard_names)
 
     return found if leak is None else [*found, leak]
 
@@ -93,7 +101,10 @@ def _closed_factory(
 
 
 def _dependency_leak(
-    path: str, owner: ast.ClassDef, produced: set[str]
+    path: str,
+    owner: ast.ClassDef,
+    produced: set[str],
+    standard_names: set[str],
 ) -> ConcreteFactoryDependency | None:
     if not produced:
         return None
@@ -111,7 +122,7 @@ def _dependency_leak(
     if constructor is None:
         return None
 
-    dependencies = constructed_dependencies(constructor)
+    dependencies = constructed_dependencies(constructor, standard_names)
 
     if not dependencies:
         return None

@@ -4,10 +4,9 @@ from pathlib import Path
 
 from module_constants import resolved_constants
 from python_ast_values import (
-    ENUM_BASES,
     assigned_name,
+    enum_classes,
     expression_name,
-    inherits_from,
     literal_annotation,
     string_value,
 )
@@ -77,19 +76,30 @@ def axes_in(modules: list[Module]) -> dict[str, list[Axis]]:
 
                     if domain is not None:
                         _add_axis(found, name, domain)
-            elif isinstance(node, ast.ClassDef) and inherits_from(
-                node, ENUM_BASES
-            ):
-                values = {
-                    value
-                    for member in node.body
-                    if isinstance(member, (ast.Assign, ast.AnnAssign))
-                    if (value := string_value(member.value, module.constants))
-                    is not None
-                }
-                _add_axis(found, node.name, values)
+
+        for name, owner in enum_classes(module.tree):
+            _add_axis(found, owner.name, _member_values(name, owner, module))
 
     return found
+
+
+def _member_values(name: str, owner: ast.ClassDef, module: Module) -> set[str]:
+    values: set[str] = set()
+
+    for member in owner.body:
+        if not isinstance(member, (ast.Assign, ast.AnnAssign)):
+            continue
+
+        value = string_value(member.value, module.constants)
+        member_name = assigned_name(member)
+
+        if value is None and member_name is not None:
+            value = module.constants.get(f"{name}.{member_name}")
+
+        if value is not None:
+            values.add(value)
+
+    return values
 
 
 def mapping_axis(

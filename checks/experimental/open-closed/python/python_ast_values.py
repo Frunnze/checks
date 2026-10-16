@@ -57,11 +57,11 @@ def inherits_from(owner: ast.ClassDef, names: set[str]) -> bool:
 
 
 def enum_classes(tree: ast.Module) -> list[QualifiedClass]:
-    return _enum_classes_in(tree.body, "")
+    return _enum_classes_in(tree.body, "", set(ENUM_BASES))
 
 
 def _enum_classes_in(
-    body: list[ast.stmt], owner: str
+    body: list[ast.stmt], owner: str, enum_bases: set[str]
 ) -> list[QualifiedClass]:
     found: list[QualifiedClass] = []
 
@@ -71,10 +71,11 @@ def _enum_classes_in(
 
         name = f"{owner}{node.name}"
 
-        if inherits_from(node, ENUM_BASES):
+        if inherits_from(node, enum_bases):
             found.append((name, node))
+            enum_bases.add(node.name)
 
-        found.extend(_enum_classes_in(node.body, f"{name}."))
+        found.extend(_enum_classes_in(node.body, f"{name}.", enum_bases))
 
     return found
 
