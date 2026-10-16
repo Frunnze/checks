@@ -16,11 +16,35 @@ silenced=$(grep -rniE "$silencers" "$@" || true)
 fail_on_findings "$silenced" \
     "the type checker is silenced here - fix the type:"
 
+type_check_strictest() {
+    "$node_tools/tsc" --noEmit -p "$1/tsconfig.json" \
+        --strict \
+        --noImplicitAny \
+        --noImplicitThis \
+        --strictNullChecks \
+        --strictFunctionTypes \
+        --strictBindCallApply \
+        --strictPropertyInitialization \
+        --strictBuiltinIteratorReturn \
+        --useUnknownInCatchVariables \
+        --noUncheckedIndexedAccess \
+        --exactOptionalPropertyTypes \
+        --noImplicitOverride \
+        --noImplicitReturns \
+        --noFallthroughCasesInSwitch \
+        --noPropertyAccessFromIndexSignature \
+        --noUnusedLocals \
+        --noUnusedParameters \
+        --allowUnreachableCode false \
+        --allowUnusedLabels false \
+        --noUncheckedSideEffectImports
+}
+
 for source_directory in "$@"; do
     package=$(package_of "$source_directory")
     require_node_modules "$package"
 
-    if ! "$node_tools/tsc" --noEmit -p "$package/tsconfig.json"; then
+    if ! type_check_strictest "$package"; then
         echo "checks: $package does not type-check" >&2
         exit 1
     fi
