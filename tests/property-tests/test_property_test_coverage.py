@@ -8,8 +8,11 @@ from hypothesis import strategies as st
 
 from check_support import HYPOTHESIS_SETTINGS
 from property_coverage_support import (
+    MINIMUM_PROPERTY_TESTS,
     SOURCE,
+    TESTS,
     given_test,
+    given_tests,
     missing,
     missing_in,
     report_for,
@@ -41,26 +44,77 @@ def test_flags_a_function_with_no_property_test(tmp_path: Path) -> None:
     assert report == [missing("next_review", 1)]
 
 
-def test_accepts_a_function_with_a_matching_property_test(
+def test_accepts_a_function_with_four_matching_property_tests(
     tmp_path: Path,
 ) -> None:
-    tests = given_test("test_next_review_property_never_moves_backwards")
+    tests = given_tests("test_next_review_property_never_moves_backwards")
 
     assert report_for(tmp_path, _NEXT_REVIEW, tests) == []
+
+
+def test_flags_a_function_with_only_three_property_tests(
+    tmp_path: Path,
+) -> None:
+    tests = (
+        given_test("test_next_review_property_never_moves_backwards")
+        + given_test("test_next_review_property_keeps_the_card")
+        + given_test("test_next_review_property_is_stable")
+    )
+
+    assert report_for(tmp_path, _NEXT_REVIEW, tests) == [
+        missing("next_review", 1)
+    ]
 
 
 def test_accepts_a_property_test_with_no_description(
     tmp_path: Path,
 ) -> None:
-    tests = given_test("test_next_review_property")
+    tests = (
+        given_test("test_next_review_property")
+        + given_test("test_next_review_property_never_moves_backwards")
+        + given_test("test_next_review_property_keeps_the_card")
+        + given_test("test_next_review_property_is_stable")
+    )
 
     assert report_for(tmp_path, _NEXT_REVIEW, tests) == []
+
+
+def test_one_test_name_in_two_test_files_counts_once(
+    tmp_path: Path,
+) -> None:
+    repeated = given_test("test_next_review_property_is_stable")
+    files = {
+        str(SOURCE): _NEXT_REVIEW,
+        str(TESTS): repeated + given_test("test_next_review_property_a"),
+        "service/tests/test_other.py": repeated
+        + given_test("test_next_review_property_b"),
+    }
+
+    assert report_for_files(tmp_path, files) == [missing("next_review", 1)]
+
+
+@HYPOTHESIS_SETTINGS
+@given(test_count=st.integers(min_value=0, max_value=8))
+def test_coverage_property_flags_exactly_the_functions_under_four_tests(
+    tmp_path: Path, test_count: int
+) -> None:
+    tests: list[str] = []
+
+    for number in range(test_count):
+        tests.append(given_test(f"test_next_review_property_{number}"))
+
+    report = report_for(tmp_path, _NEXT_REVIEW, "".join(tests))
+
+    if test_count < MINIMUM_PROPERTY_TESTS:
+        assert report == [missing("next_review", 1)]
+    else:
+        assert report == []
 
 
 def test_rejects_a_test_named_without_the_property_marker(
     tmp_path: Path,
 ) -> None:
-    tests = given_test("test_next_review_never_moves_backwards")
+    tests = given_tests("test_next_review_never_moves_backwards")
 
     assert report_for(tmp_path, _NEXT_REVIEW, tests) == [
         missing("next_review", 1)
@@ -70,7 +124,7 @@ def test_rejects_a_test_named_without_the_property_marker(
 def test_a_longer_definitions_test_does_not_cover_a_shorter_one(
     tmp_path: Path,
 ) -> None:
-    tests = given_test("test_next_review_interval_property_is_positive")
+    tests = given_tests("test_next_review_interval_property_is_positive")
 
     assert report_for(tmp_path, _NEXT_REVIEW, tests) == [
         missing("next_review", 1)

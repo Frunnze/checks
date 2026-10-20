@@ -7,6 +7,7 @@ const { propertyTestNamesIn } = require("./property_test_names");
 const TESTS_DIRECTORY = "tests";
 const PARENT_DIRECTORY = "..";
 const PROPERTY_MARKER = " property";
+const MINIMUM_PROPERTY_TESTS = 4;
 
 const typescript = require(process.argv[2]);
 const sourceDirectory = process.argv[3];
@@ -51,12 +52,13 @@ function propertyTestsIn(paths) {
 
 function isCovered(name, propertyTests) {
   const expected = name + PROPERTY_MARKER;
+  let matchingTestCount = 0;
 
   for (const title of propertyTests) {
-    if (title.startsWith(expected)) return true;
+    if (title.startsWith(expected)) matchingTestCount += 1;
   }
 
-  return false;
+  return matchingTestCount >= MINIMUM_PROPERTY_TESTS;
 }
 
 function untestedIn(filePath, propertyTests) {
@@ -109,6 +111,6 @@ for (const untested of reported) {
   const expected = `"${untested.name} property ..."`;
   process.stdout.write(
     `${untested.path}:${untested.lineNumber}: ${untested.name} ` +
-      `needs a test.prop named ${expected}\n`,
+      `needs ${MINIMUM_PROPERTY_TESTS} property tests titled ${expected}\n`,
   );
 }

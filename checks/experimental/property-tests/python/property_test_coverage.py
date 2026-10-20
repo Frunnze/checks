@@ -10,6 +10,7 @@ GIVEN_DECORATOR = "given"
 TESTS_DIRECTORY = "tests"
 TEST_PREFIX = "test_"
 PROPERTY_MARKER = "_property"
+MINIMUM_PROPERTY_TESTS = 4
 
 
 class UntestedDefinition(NamedTuple):
@@ -129,12 +130,13 @@ class UntestedDefinitions:
 
     def _is_covered(self, name: str, property_tests: set[str]) -> bool:
         expected = PropertyTestName().expected_for(name)
+        matching_test_count = 0
 
         for test_name in property_tests:
             if test_name.startswith(expected):
-                return True
+                matching_test_count += 1
 
-        return False
+        return matching_test_count >= MINIMUM_PROPERTY_TESTS
 
 
 source_directory = Path(sys.argv[1])
@@ -144,5 +146,5 @@ for untested in UntestedDefinitions(source_directory).find_in(source_paths):
     expected = PropertyTestName().expected_for(untested.name) + "*"
     _ = sys.stdout.write(
         f"{untested.path}:{untested.line_number}: {untested.name} "
-        f"needs a property test named {expected}\n"
+        f"needs {MINIMUM_PROPERTY_TESTS} property tests named {expected}\n"
     )

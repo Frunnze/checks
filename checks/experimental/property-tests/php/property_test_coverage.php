@@ -44,17 +44,18 @@ foreach ( $source_files as $file_path ) {
 
 		$expected = TEST_PREFIX . $definition['name'] . PROPERTY_MARKER;
 		$covered  = array_filter(
-			$property_tests,
+			array_unique( $property_tests ),
 			static fn( string $test ): bool => str_starts_with(
 				$test,
 				$expected
 			)
 		);
 
-		if ( array() === $covered ) {
+		if ( count( $covered ) < MINIMUM_PROPERTY_TESTS ) {
 			$problems[] = $file_path . ':' . $definition['line'] . ': '
-				. $definition['name'] . ' needs a property test named '
-				. $expected . '<what it guarantees>';
+				. $definition['name'] . ' needs ' . MINIMUM_PROPERTY_TESTS
+				. ' property tests named ' . $expected
+				. '<what it guarantees>';
 		}
 	}
 }

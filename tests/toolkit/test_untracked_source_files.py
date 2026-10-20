@@ -63,4 +63,4 @@ def test_property_tests_sees_a_file_never_added_to_git(
     )
 
     assert finished.returncode == 1
-    assert "score needs a property test" in finished.stderr
+    assert "score needs 4 property tests" in finished.stderr

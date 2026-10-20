@@ -2,7 +2,7 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "checks: property tests in typescript (one per definition)"
+echo "checks: property tests in typescript (four per definition)"
 echo "checks: design by contract - assert the guarantee, not the behaviour"
 
 require_binary "$node_binary" node
@@ -18,6 +18,6 @@ done)
 untested=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$untested" \
-    "nothing states a property about these - give each a fast-check" \
-    "test titled \"<function> property <what it guarantees>\" that" \
-    "asserts a contract guarantee over generated input:"
+    "too few properties are stated about these - give each four" \
+    "fast-check tests titled \"<function> property <what it guarantees>\"" \
+    "that each assert a contract guarantee over generated input:"

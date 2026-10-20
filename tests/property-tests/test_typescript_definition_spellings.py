@@ -42,6 +42,6 @@ def test_reports_a_function_behind_a_type_only_wrapper(
     report = report_from(FINDER, tmp_path, {SOURCE: source})
 
     assert report == [
-        f'{SOURCE}:{line_number}: score needs a test.prop named '
+        f"{SOURCE}:{line_number}: score needs 4 property tests titled "
         '"score property ..."'
     ]

@@ -1,24 +1,3 @@
-"""
-Modules that import each other must not make the constant resolution grow
-without bound. Domain: a package whose orders, payments and notifications
-modules import the other two by name and hold one string constant each,
-beside 4-40 one-line helper modules. Oracle: a resource bound - the finder
-answers within 256 MB and 20 s with no finding.
-
-Concrete inputs -> expected outputs:
-- input:
-      shop/orders.py:        from . import notifications, payments
-                             PENDING = 'pending'
-      shop/payments.py:      from . import notifications, orders
-                             CURRENCY = 'EUR'
-      shop/notifications.py: from . import orders, payments
-                             SENDER = 'shop@example.com'
-      shop/helper_0.py ... shop/helper_15.py: def helper_<n>(value): ...
-  output: expected no finding, got MemoryError - every pass prefixed the
-  cycle's constants one level deeper (orders.payments.orders...), so each
-  extra module doubled the memory.
-"""
-
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +9,7 @@ from hypothesis import strategies as st
 from open_closed_finder_support import FINDER_DIRECTORY
 
 MEMORY_LIMIT = 256 * 2**20
+PEAK_MEMORY_UNIT = 1 if sys.platform == "darwin" else 1024
 CYCLE_MODULES = {
     "orders": ("notifications, payments", "PENDING = 'pending'"),
     "payments": ("notifications, orders", "CURRENCY = 'EUR'"),
@@ -37,10 +17,12 @@ CYCLE_MODULES = {
 }
 FINDER_RUN = (
     "import resource, sys\n"
-    "resource.setrlimit(resource.RLIMIT_AS, ({limit}, {limit}))\n"
+    "if sys.platform != 'darwin':\n"
+    "    resource.setrlimit(resource.RLIMIT_AS, ({limit}, {limit}))\n"
     "sys.path.insert(0, {finder!r})\n"
     "from variant_dispatches import VariantDispatches\n"
     "print(len(VariantDispatches().find_in(sys.stdin.read().split())))\n"
+    "print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)\n"
 )
 
 
@@ -86,4 +68,8 @@ def test_finder_property_resolves_an_import_cycle_in_bounded_memory(
     )
 
     assert finished.returncode == 0, finished.stderr[-500:]
-    assert finished.stdout.strip() == "0"
+
+    finding_count, peak_memory = finished.stdout.split()
+
+    assert finding_count == "0"
+    assert int(peak_memory) * PEAK_MEMORY_UNIT <= MEMORY_LIMIT

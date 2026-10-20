@@ -2,7 +2,7 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "checks: property tests in php (one per definition)"
+echo "checks: property tests in php (four per definition)"
 echo "checks: design by contract - assert the guarantee, not the behaviour"
 
 require_binary "$php_binary" php
@@ -17,5 +17,6 @@ done)
 untested=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$untested" \
-    "assert a guarantee over generated input (\$this->forAll) - a" \
-    "round-trip, an invariant, a bound, an ordering - never an example:"
+    "give each four tests that assert a guarantee over generated input" \
+    "(\$this->forAll) - a round-trip, an invariant, a bound, an" \
+    "ordering - never an example:"

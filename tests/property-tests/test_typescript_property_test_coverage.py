@@ -18,6 +18,7 @@ _TESTS = "tests/units.test.ts"
 _SETTINGS = settings(max_examples=8, deadline=None)
 _FAST_CHECK_STYLES = ["default", "namespace", "named"]
 _ELEMENT_TYPES = ["JSX.Element", "React.JSX.Element"]
+_MINIMUM_PROPERTY_TESTS = 4
 
 function_names = st.from_regex(r"unit[a-z]{0,6}", fullmatch=True)
 function_name_lists = st.lists(
@@ -34,7 +35,7 @@ def _report_for(root: Path, files: dict[str, str]) -> list[str]:
 
 def _missing(source: str, name: str, line_number: int) -> str:
     return (
-        f"{source}:{line_number}: {name} needs a test.prop named "
+        f"{source}:{line_number}: {name} needs 4 property tests titled "
         f'"{name} property ..."'
     )
 
@@ -52,7 +53,7 @@ def _source_module(names: list[str]) -> str:
     return "".join(functions)
 
 
-def _fast_check_test(name: str, alias: str, style: str) -> str:
+def _fast_check_tests(name: str, alias: str, style: str) -> str:
     if style == "named":
         assertion = f"assert(property(integer(), (n) => {name}(n) === n * 2))"
     else:
@@ -61,7 +62,16 @@ def _fast_check_test(name: str, alias: str, style: str) -> str:
             f"(n) => {name}(n) === n * 2))"
         )
 
-    return f'test("{name} property doubles", () => {{\n  {assertion};\n}});\n'
+    return _repeated_tests(name, f"() => {{\n  {assertion};\n}}")
+
+
+def _repeated_tests(name: str, body: str) -> str:
+    tests: list[str] = []
+
+    for number in range(_MINIMUM_PROPERTY_TESTS):
+        tests.append(f'test("{name} property doubles {number}", {body});\n')
+
+    return "".join(tests)
 
 
 def _fast_check_module(names: list[str], alias: str, style: str) -> str:
@@ -75,7 +85,7 @@ def _fast_check_module(names: list[str], alias: str, style: str) -> str:
     tests: list[str] = []
 
     for name in names:
-        tests.append(_fast_check_test(name, alias, style))
+        tests.append(_fast_check_tests(name, alias, style))
 
     return header + "".join(tests)
 
@@ -138,10 +148,11 @@ def test_finder_property_counts_the_test_prop_form_it_asks_for(
     tests = [f'import {{ fc, {runner} }} from "@fast-check/vitest";\n']
 
     for name in names:
-        tests.append(
-            f'{runner}.prop([fc.integer()])("{name} property doubles", '
-            f"(value) => {name}(value) === value * 2);\n"
-        )
+        for number in range(_MINIMUM_PROPERTY_TESTS):
+            tests.append(
+                f'{runner}.prop([fc.integer()])("{name} property doubles '
+                f'{number}", (value) => {name}(value) === value * 2);\n'
+            )
 
     files = {_SOURCE: _source_module(names), _TESTS: "".join(tests)}
 
@@ -182,11 +193,11 @@ def test_finder_property_follows_the_local_name_of_fast_check(
 def test_counts_an_assertion_with_a_space_before_its_arguments(
     tmp_path: Path,
 ) -> None:
-    tests = (
-        'import fc from "fast-check";\n'
-        'test("score property doubles", () => {\n'
+    tests = 'import fc from "fast-check";\n' + _repeated_tests(
+        "score",
+        "() => {\n"
         "  fc.assert (fc.property(fc.integer(), (n) => score(n) === n * 2));\n"
-        "});\n"
+        "}",
     )
     files = {_SOURCE: _source_module(["score"]), _TESTS: tests}
 
@@ -196,11 +207,8 @@ def test_counts_an_assertion_with_a_space_before_its_arguments(
 def test_rejects_an_assert_that_is_not_from_fast_check(
     tmp_path: Path,
 ) -> None:
-    tests = (
-        'import assert from "node:assert";\n'
-        'test("score property doubles", () => {\n'
-        "  assert(score(1) === 2);\n"
-        "});\n"
+    tests = 'import assert from "node:assert";\n' + _repeated_tests(
+        "score", "() => {\n  assert(score(1) === 2);\n}"
     )
     files = {_SOURCE: _source_module(["score"]), _TESTS: tests}
 
@@ -274,3 +282,51 @@ def test_finder_property_exempts_a_component_whatever_its_element_spelling(
 
     assert canonical == []
     assert other == canonical
+
+
+_DOUBLING_ASSERTION = (
+    "() => {\n"
+    "  fc.assert(fc.property(fc.integer(), (n) => score(n) === n * 2));\n"
+    "}"
+)
+
+
+@given(test_count=st.integers(min_value=0, max_value=8))
+@example(test_count=3)
+@_SETTINGS
+def test_finder_property_flags_exactly_the_functions_under_four_tests(
+    test_count: int,
+) -> None:
+    tests = ['import fc from "fast-check";\n']
+
+    for number in range(test_count):
+        tests.append(
+            f'test("score property doubles {number}", '
+            f"{_DOUBLING_ASSERTION});\n"
+        )
+
+    files = {_SOURCE: _source_module(["score"]), _TESTS: "".join(tests)}
+
+    with tempfile.TemporaryDirectory() as directory:
+        report = _report_for(Path(directory), files)
+
+    if test_count < _MINIMUM_PROPERTY_TESTS:
+        assert report == [_missing(_SOURCE, "score", 1)]
+    else:
+        assert report == []
+
+
+def test_one_title_in_four_test_files_counts_once(tmp_path: Path) -> None:
+    repeated = (
+        'import fc from "fast-check";\n'
+        f'test("score property doubles", {_DOUBLING_ASSERTION});\n'
+    )
+    files = {
+        _SOURCE: _source_module(["score"]),
+        "tests/a.test.ts": repeated,
+        "tests/b.test.ts": repeated,
+        "tests/c.test.ts": repeated,
+        "tests/d.test.ts": repeated,
+    }
+
+    assert _report_for(tmp_path, files) == [_missing(_SOURCE, "score", 1)]

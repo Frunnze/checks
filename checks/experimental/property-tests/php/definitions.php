@@ -6,6 +6,7 @@ const PROPERTY_CALL   = 'forAll';
 const TEST_PREFIX     = 'test_';
 const PROPERTY_MARKER = '_property_';
 const MAGIC_PREFIX    = '__';
+const MINIMUM_PROPERTY_TESTS = 4;
 const NAME_PATTERN    = '/^[A-Za-z_\x80-\xff][A-Za-z0-9_\x80-\xff]*$/';
 
 /** @return list<array{name: string, line: int, body: list<string>}> */

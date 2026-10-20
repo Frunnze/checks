@@ -3,10 +3,17 @@ import sys
 from pathlib import Path
 
 CHECKS = Path(__file__).resolve().parents[2] / "checks"
-CHECKER = CHECKS / "experimental" / "property-tests" / "python" / "property_test_coverage.py"
+CHECKER = (
+    CHECKS
+    / "experimental"
+    / "property-tests"
+    / "python"
+    / "property_test_coverage.py"
+)
 SOURCE_DIRECTORY = "service/src"
 SOURCE = Path("service/src/features/study_units/scheduler.py")
 TESTS = Path("service/tests/test_scheduler.py")
+MINIMUM_PROPERTY_TESTS = 4
 
 
 def report_for_files(
@@ -55,7 +62,7 @@ def report_for(tmp_path: Path, source: str, tests: str) -> list[str]:
 
 def missing_in(source: str, name: str, line_number: int) -> str:
     return (
-        f"{source}:{line_number}: {name} needs a property test "
+        f"{source}:{line_number}: {name} needs 4 property tests "
         f"named test_{name}_property*"
     )
 
@@ -71,6 +78,15 @@ def given_test(name: str, decorators: str = "@given()") -> str:
         f"def {name}():\n"
         "    pass\n"
     )
+
+
+def given_tests(name: str, decorators: str = "@given()") -> str:
+    tests: list[str] = []
+
+    for number in range(MINIMUM_PROPERTY_TESTS):
+        tests.append(given_test(f"{name}_{number}", decorators))
+
+    return "".join(tests)
 
 
 def _write(tmp_path: Path, relative: Path, source: bytes) -> str:

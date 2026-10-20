@@ -1,22 +1,3 @@
-"""
-PHP property-tests asks for a property test of every method, whatever its
-name: since PHP 7 a method may be named like a keyword, and
-token_get_all() reads such a name as the keyword token. Domain: one
-untested method of svc/src/Repo.php named items or a keyword - list, new,
-print, match, default, clone, empty, fn. Oracle: metamorphic - renaming
-the method keeps the verdict of items().
-
-Concrete inputs -> expected outputs:
-- input: svc/src/Repo.php:
-      final class Repo {
-          public function items(): array { return [1]; }
-      }
-  output: exit 1, "items needs a property test".
-- input (falsifying example): the same method named list()
-  output: expected exit 1, "list needs a property test", got exit 0 - the
-  name was read as T_LIST and skipped.
-"""
-
 from pathlib import Path
 
 import pytest
@@ -58,4 +39,4 @@ def test_every_method_needs_a_property_test(tmp_path: Path, name: str) -> None:
     finished = run_configured(tmp_path, CONFIGURATION, "property-tests")
 
     assert finished.returncode == 1, finished.stdout + finished.stderr
-    assert f"{name} needs a property test" in finished.stderr
+    assert f"{name} needs 4 property tests" in finished.stderr

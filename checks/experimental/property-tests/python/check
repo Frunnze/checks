@@ -2,7 +2,7 @@
 set -e
 . "$toolkit/tools.sh"
 
-echo "checks: property tests in python (one per definition)"
+echo "checks: property tests in python (four per definition)"
 echo "checks: design by contract - assert the guarantee, not the behaviour"
 
 tested_directories=$(tested_sources "$@")
@@ -15,6 +15,6 @@ done)
 untested=$(printf '%s\n' "$findings" | reportable_findings)
 
 fail_on_findings "$untested" \
-    "nothing states a property about these - give each a hypothesis" \
-    "test named test_<function>_property_<what it guarantees> that" \
-    "asserts a contract guarantee over generated input:"
+    "too few properties are stated about these - give each four" \
+    "hypothesis tests named test_<function>_property_<what it guarantees>" \
+    "that each assert a contract guarantee over generated input:"

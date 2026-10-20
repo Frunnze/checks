@@ -7,7 +7,7 @@ from hypothesis import strategies as st
 
 from check_support import HYPOTHESIS_SETTINGS
 from property_coverage_support import (
-    given_test,
+    given_tests,
     missing_in,
     report_for_files,
 )
@@ -18,7 +18,7 @@ _BETA_SOURCE = "beta-service/src/features/study_units/scheduler.py"
 _ALPHA_TESTS = "alpha-service/tests/test_scheduler.py"
 _BETA_TESTS = "beta-service/tests/test_scheduler.py"
 _NEXT_REVIEW = "def next_review(card):\n    return card.due\n"
-_COVERING_TEST = given_test("test_next_review_property_never_regresses")
+_COVERING_TEST = given_tests("test_next_review_property_never_regresses")
 _IDENTIFIERS = st.from_regex(r"[a-z]{3,8}", fullmatch=True).filter(
     lambda name: not keyword.iskeyword(name)
 )
@@ -88,7 +88,7 @@ def test_a_source_folder_named_like_its_service_finds_its_tests(
             "def schedule(cards):\n    return cards\n"
             "def plan(cards):\n    return cards\n"
         ),
-        "app/tests/test_scheduler.py": given_test(
+        "app/tests/test_scheduler.py": given_tests(
             "test_schedule_property_sorted"
         ),
     }
