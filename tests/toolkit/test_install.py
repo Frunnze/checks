@@ -6,7 +6,7 @@ from pathlib import Path
 
 TOOLKIT = Path(__file__).resolve().parents[2]
 TOOLKIT_FOLDER = ".checks"
-TOOLKIT_FILES = ("install.sh", "run", "tools.sh")
+TOOLKIT_FILES = ("install.sh", "run", "tools.sh", "languages.sh")
 TOOLKIT_FOLDERS = ("checks", "configuration", "hooks")
 CONFIGURATION = (
     'source_directories = ["svc/src"]\n'
@@ -60,6 +60,7 @@ def _install(tmp_path: Path, project: Path) -> None:
     shims = tmp_path / "shims"
     _stub(shims / "npm")
     _stub(shims / "composer")
+    _stub(shims / "dart")
     environment = {**os.environ, "PATH": f"{shims}:{os.environ['PATH']}"}
 
     _ = subprocess.run(

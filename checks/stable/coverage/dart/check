@@ -1,0 +1,71 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+minimum_coverage=$(setting checks.coverage.fail-under)
+
+echo "checks: dart coverage (lines and branches at $minimum_coverage%)"
+echo "checks: test first - do not write a branch no test asked for"
+
+require_command dart "brew install dart-sdk"
+
+shortfall_finder="$(dirname "$0")/coverage_shortfalls.dart"
+coverage_folder=$(mktemp -d)
+lcov_report="$coverage_folder/lcov.info"
+loader_name=coverage_loader_test.dart
+loader=""
+trap 'rm -rf "$coverage_folder" "$loader"' EXIT
+
+write_library_loader() {
+    loaded_package=$1
+    loaded_directory=$2
+    package_name=$(sed -n 's/^name:[[:space:]]*//p' \
+        "$loaded_package/pubspec.yaml")
+    library_number=0
+
+    dart_files_in "$loaded_directory" | while IFS= read -r source_file; do
+        if grep -q '^part of' "$source_file"; then
+            continue
+        fi
+
+        relative_file=${source_file#"$loaded_package"/}
+        library_file=${relative_file#lib/}
+
+        case "$relative_file" in
+            lib/*) import_uri="package:$package_name/$library_file" ;;
+            *) import_uri="../../$relative_file" ;;
+        esac
+
+        echo "import '$import_uri' as library$library_number;"
+        library_number=$((library_number + 1))
+    done
+
+    echo "void main() {}"
+}
+
+tested_directories=$(tested_sources "$@")
+
+for source_directory in $tested_directories; do
+    package=$(package_of "$source_directory")
+    tests=$(basename "$(tests_of "$source_directory")")
+    require_resolved_dart_package "$package"
+    mkdir -p "$package/.dart_tool/checks"
+    loader="$package/.dart_tool/checks/$loader_name"
+    write_library_loader "$package" "$source_directory" > "$loader"
+
+    if ! (cd "$package" && "$dart_binary" test "$tests" \
+        ".dart_tool/checks/$loader_name" \
+        --coverage-path "$lcov_report" --branch-coverage); then
+        echo "checks: the tests of $package fail" >&2
+        exit 1
+    fi
+
+    rm -f "$loader"
+    shortfalls=$(dart_files_in "$source_directory" \
+        | "$dart_binary" "$shortfall_finder" "$lcov_report" \
+        "$minimum_coverage")
+
+    fail_on_findings "$shortfalls" \
+        "$package is covered below $minimum_coverage% - test what you" \
+        "wrote, or delete the branch no test asked for:"
+done

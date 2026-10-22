@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: linters in dart (dart analyze, very_good_analysis)"
+echo "checks: write for the reader - code is read far more than written"
+
+require_command dart "brew install dart-sdk"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    require_resolved_dart_package "$package"
+    require_strict_dart_rules "$package"
+
+    if ! "$dart_binary" analyze --fatal-infos "$source_directory"; then
+        echo "checks: dart analyze rejected $package" >&2
+        exit 1
+    fi
+done

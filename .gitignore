@@ -8,3 +8,6 @@ __pycache__/
 .DS_Store
 package-lock.json
 composer.lock
+.pub-cache/
+.dart_tool/
+pubspec.lock

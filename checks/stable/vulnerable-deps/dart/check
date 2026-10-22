@@ -1,0 +1,52 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: dart dependencies (no known vulnerability)"
+echo "checks: stay secure by default - upgrade rather than accept it"
+
+require_command dart "brew install dart-sdk"
+require_command osv-scanner "brew install osv-scanner"
+
+advisory_filter="$(dirname "$0")/unaccepted_advisories.dart"
+scanner_errors=$(mktemp)
+trap 'rm -f "$scanner_errors"' EXIT
+
+for package in $(packages_of "$@"); do
+    lockfile="$package/pubspec.lock"
+
+    if [ ! -f "$lockfile" ]; then
+        echo "checks: $package has no pubspec.lock - run dart pub get" >&2
+        echo "checks: there" >&2
+        exit 1
+    fi
+
+    scan_status=0
+    scan_report=$(osv-scanner scan source --format json \
+        --lockfile "$lockfile" 2> "$scanner_errors") || scan_status=$?
+
+    if [ "$scan_status" -eq 0 ]; then
+        continue
+    fi
+
+    if [ "$scan_status" -eq 1 ]; then
+        findings=$(printf '%s\n' "$scan_report" \
+            | "$dart_binary" "$advisory_filter" $(whitelist_entries))
+
+        fail_on_findings "$findings" \
+            "a package in $package has a known vulnerability - run dart" \
+            "pub upgrade for it, or add the advisory id to" \
+            "[checks.vulnerable-deps] whitelist:"
+        continue
+    fi
+
+    if grep -qE "$unreachable_registry" "$scanner_errors"; then
+        echo "checks: advisory database unreachable - skipping the" >&2
+        echo "checks: osv-scanner scan of $package" >&2
+        continue
+    fi
+
+    echo "checks: osv-scanner failed before it could scan $package:" >&2
+    cat "$scanner_errors" >&2
+    exit 1
+done

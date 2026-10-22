@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: duplicate code in dart (write it once)"
+echo "checks: follow DRY - extract the repeat, do not copy it"
+
+require_binary "$node_tools/jscpd" jscpd
+
+ignored_paths=$(whitelist_entries | paste -sd, -)
+
+for source_directory in "$@"; do
+    if ! "$node_tools/jscpd" "$source_directory" \
+        --format dart \
+        --exitCode 1 \
+        --ignore-pattern "(import|export|part)\\s[^;]*;" \
+        --ignore "${ignored_paths:-**/node_modules/**}" \
+        --reporters console \
+        --silent; then
+        echo "checks: duplicated code in $source_directory - reuse" >&2
+        echo "checks: it, do not copy it" >&2
+        exit 1
+    fi
+done

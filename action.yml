@@ -13,11 +13,21 @@ runs:
     - uses: actions/setup-node@v4
       with:
         node-version: "22"
+    - uses: dart-lang/setup-dart@v1
+      with:
+        sdk: "3.13.6"
     - name: Install gitleaks
       shell: bash
       run: |
         gitleaks_release="https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
         curl -sSfL "$gitleaks_release" | tar -xz -C "$RUNNER_TEMP" gitleaks
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+    - name: Install osv-scanner
+      shell: bash
+      run: |
+        osv_scanner_release="https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64"
+        curl -sSfL "$osv_scanner_release" -o "$RUNNER_TEMP/osv-scanner"
+        chmod +x "$RUNNER_TEMP/osv-scanner"
         echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
     - name: Install the toolkit
       shell: bash

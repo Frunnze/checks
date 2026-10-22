@@ -1,0 +1,32 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: property tests in dart (four per definition)"
+echo "checks: design by contract - assert the guarantee, not the behaviour"
+
+finder="$dart_tools/property_test_coverage"
+finder_sources=$(dirname "$0")
+
+require_binary "$finder" "the dart property-test finder"
+
+if [ -n "$(find "$finder_sources" -maxdepth 1 -name '*.dart' \
+    -newer "$finder")" ]; then
+    echo "checks: the dart property-test finder is out of date -" >&2
+    echo "checks: run ./install.sh in $toolkit" >&2
+    exit 1
+fi
+
+tested_directories=$(tested_sources "$@")
+
+findings=$(for source_directory in $tested_directories; do
+    dart_files_in $(sources_and_tests "$source_directory") \
+        | "$finder" "$source_directory"
+done)
+untested=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$untested" \
+    "too few properties are stated about these - give each four" \
+    "kiri_check properties titled \"<function> property <what it" \
+    "guarantees>\" that each assert a contract guarantee over generated" \
+    "input (forAll):"

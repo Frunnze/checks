@@ -7,13 +7,16 @@ from hypothesis import HealthCheck, settings
 
 TOOLKIT = Path(__file__).resolve().parent.parent
 COPIED_TOOLKIT = ".checks-toolkit"
-TOOLKIT_FILES = ("run", "tools.sh")
+TOOLKIT_FILES = ("run", "tools.sh", "languages.sh")
 TOOLKIT_FOLDERS = ("checks", "configuration")
-IGNORED = f"{COPIED_TOOLKIT}/\n.venv/\n"
+IGNORED = f"{COPIED_TOOLKIT}/\n.venv/\n.dart_tool/\n"
 WORDPRESS_MANIFEST = (
     '{"type": "wordpress-plugin", "require": {"php": ">=8.1"}}\n'
 )
 LIBRARY_MANIFEST = '{"type": "library", "require": {"php": ">=8.1"}}\n'
+DART_PACKAGE = "app"
+DART_CONFIGURATION = 'source_directories = ["app/lib", "app/tests"]\n'
+DART_PUBSPEC = "name: app\nenvironment:\n  sdk: ^3.9.0\n"
 SOURCE_DIRECTORIES = (
     "user-service/src",
     "content-management-service/src",
@@ -83,6 +86,19 @@ def php_package(tmp_path: Path, package: str, manifest: str) -> None:
     autoload.parent.mkdir(parents=True)
     _ = autoload.write_text("<?php\n", encoding="utf-8")
     stage_file(tmp_path, f"{package}/composer.json", manifest)
+
+
+def dart_package(tmp_path: Path, pubspec: str) -> None:
+    repository(tmp_path)
+    copied_cache = tmp_path / COPIED_TOOLKIT / ".pub-cache"
+    copied_cache.symlink_to(TOOLKIT / ".pub-cache")
+    stage_file(tmp_path, f"{DART_PACKAGE}/pubspec.yaml", pubspec)
+    _ = subprocess.run(
+        ["dart", "pub", "get", "--offline"],
+        cwd=tmp_path / DART_PACKAGE,
+        check=True,
+        capture_output=True,
+    )
 
 
 def link_toolkit_tool(tmp_path: Path, name: str) -> None:

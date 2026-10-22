@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: strict typing in dart (dart analyze, strict modes)"
+echo "checks: type it strictly - an illegal state must fail to compile"
+echo "checks: never silence the checker - fix the type instead"
+
+require_command dart "brew install dart-sdk"
+
+silencers='//[[:space:]]*ignore(_for_file)?[[:space:]]*:'
+loosened_modes='strict-(casts|inference|raw-types):[[:space:]]*false'
+silenced=$(dart_files_in "$@" \
+    | while IFS= read -r source_file; do
+        grep -anHE "$silencers" "$source_file" || true
+    done)
+
+fail_on_findings "$silenced" \
+    "the type checker is silenced here - fix the type:"
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    analysis_options="$package/analysis_options.yaml"
+    require_resolved_dart_package "$package"
+    require_strict_dart_rules "$package"
+    loosened=$(grep -anHE "$loosened_modes" "$analysis_options" || true)
+
+    fail_on_findings "$loosened" \
+        "a strict mode is turned off here - turn it back on:"
+
+    if ! "$dart_binary" analyze "$source_directory"; then
+        echo "checks: $package does not type-check" >&2
+        exit 1
+    fi
+done

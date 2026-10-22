@@ -4,6 +4,10 @@ unset CDPATH
 
 toolkit=$(cd "$(dirname "$0")" && pwd)
 virtual_environment="$toolkit/.venv"
+dart_tool_cache="$toolkit/.pub-cache"
+property_test_finder="$toolkit/checks/experimental/property-tests/dart"
+dart_code_linter_version=4.4.2
+dependency_validator_version=5.1.0
 toolkit_folder=$(basename "$toolkit")
 
 if [ ! -d "$virtual_environment" ]; then
@@ -19,6 +23,23 @@ if command -v composer > /dev/null 2>&1; then
     composer install --quiet --working-dir="$toolkit"
 else
     echo "install: composer is missing - php checks will not run"
+fi
+
+if command -v dart > /dev/null 2>&1; then
+    PUB_CACHE="$dart_tool_cache" dart pub global activate \
+        dart_code_linter "$dart_code_linter_version" > /dev/null
+    PUB_CACHE="$dart_tool_cache" dart pub global activate \
+        dependency_validator "$dependency_validator_version" > /dev/null
+    PUB_CACHE="$dart_tool_cache" dart pub get \
+        --directory "$property_test_finder" > /dev/null
+    dart compile exe "$property_test_finder/property_test_coverage.dart" \
+        -o "$dart_tool_cache/bin/property_test_coverage" > /dev/null
+else
+    echo "install: dart is missing - dart checks will not run"
+fi
+
+if ! command -v osv-scanner > /dev/null 2>&1; then
+    echo "install: osv-scanner is missing - brew install osv-scanner"
 fi
 
 if ! command -v gitleaks > /dev/null 2>&1; then

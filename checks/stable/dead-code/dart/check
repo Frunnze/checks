@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: dead code in dart (delete what nothing reaches)"
+echo "checks: follow YAGNI - delete what nothing reaches, do not keep it"
+
+require_command dart "brew install dart-sdk"
+require_binary "$dart_tools/metrics" dart_code_linter
+
+for source_directory in "$@"; do
+    package=$(package_of "$source_directory")
+    require_resolved_dart_package "$package"
+
+    if ! (cd "$package" && PUB_CACHE="$dart_tool_cache" \
+        "$dart_tools/metrics" check-unused-code \
+        "$(basename "$source_directory")" \
+        --root-folder "$PWD" \
+        --analyze-private-members \
+        --analyze-public-members \
+        --no-congratulate); then
+        echo "checks: nothing reaches this code in $package -" >&2
+        echo "checks: delete it" >&2
+        exit 1
+    fi
+done

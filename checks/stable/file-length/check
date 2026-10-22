@@ -11,6 +11,7 @@ source_files=$(
     python_files_in "$@"
     typescript_files_in "$@"
     php_files_in "$@"
+    dart_files_in "$@"
 )
 checked_files=$(printf '%s\n' "$source_files" | without_whitelisted)
 

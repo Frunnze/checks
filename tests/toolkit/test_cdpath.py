@@ -32,7 +32,7 @@ from hypothesis import strategies as st
 from check_support import TOOLKIT
 
 TOOLKIT_FOLDER = ".checks"
-TOOLKIT_FILES = ("install.sh", "run", "tools.sh")
+TOOLKIT_FILES = ("install.sh", "run", "tools.sh", "languages.sh")
 TOOLKIT_FOLDERS = ("checks", "configuration", "hooks")
 CONFIGURATION = (
     'source_directories = ["svc/src"]\n'
@@ -102,6 +102,7 @@ def _environment(workspace: Path, cdpath: str) -> dict[str, str]:
     shims = workspace / "shims"
     _executable(shims / "npm", "#!/bin/sh\nexit 0\n")
     _executable(shims / "composer", "#!/bin/sh\nexit 0\n")
+    _executable(shims / "dart", "#!/bin/sh\nexit 0\n")
     _executable(shims / "python3", VENV_SHIM)
     elsewhere = workspace / "elsewhere"
     project = workspace / "project"
