@@ -26,6 +26,7 @@ else
 fi
 
 if command -v dart > /dev/null 2>&1; then
+    rm -f "$dart_tool_cache/bin/property_test_coverage"
     PUB_CACHE="$dart_tool_cache" dart pub global activate \
         dart_code_linter "$dart_code_linter_version" > /dev/null
     PUB_CACHE="$dart_tool_cache" dart pub global activate \

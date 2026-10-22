@@ -43,6 +43,23 @@ write_library_loader() {
     echo "void main() {}"
 }
 
+run_tests_with_coverage() {
+    tested_package=$1
+    tests_folder=$2
+
+    if is_flutter_package "$tested_package"; then
+        require_command flutter "brew install --cask flutter"
+        (cd "$tested_package" && flutter test "$tests_folder" \
+            ".dart_tool/checks/$loader_name" \
+            --coverage --branch-coverage --coverage-path "$lcov_report")
+        return
+    fi
+
+    (cd "$tested_package" && "$dart_binary" test "$tests_folder" \
+        ".dart_tool/checks/$loader_name" \
+        --coverage-path "$lcov_report" --branch-coverage)
+}
+
 tested_directories=$(tested_sources "$@")
 
 for source_directory in $tested_directories; do
@@ -53,9 +70,7 @@ for source_directory in $tested_directories; do
     loader="$package/.dart_tool/checks/$loader_name"
     write_library_loader "$package" "$source_directory" > "$loader"
 
-    if ! (cd "$package" && "$dart_binary" test "$tests" \
-        ".dart_tool/checks/$loader_name" \
-        --coverage-path "$lcov_report" --branch-coverage); then
+    if ! run_tests_with_coverage "$package" "$tests"; then
         echo "checks: the tests of $package fail" >&2
         exit 1
     fi
@@ -63,7 +78,7 @@ for source_directory in $tested_directories; do
     rm -f "$loader"
     shortfalls=$(dart_files_in "$source_directory" \
         | "$dart_binary" "$shortfall_finder" "$lcov_report" \
-        "$minimum_coverage")
+        "$minimum_coverage" "$package")
 
     fail_on_findings "$shortfalls" \
         "$package is covered below $minimum_coverage% - test what you" \

@@ -6,7 +6,7 @@ const String lineDataTag = 'DA:';
 const String branchDataTag = 'BRDA:';
 const String endOfRecord = 'end_of_record';
 const String untakenBranch = '-';
-const int expectedArgumentCount = 2;
+const int expectedArgumentCount = 3;
 const int lineNumberField = 0;
 const int lineHitsField = 1;
 const int branchTakenField = 3;
@@ -71,7 +71,20 @@ FileCoverage coverageOfRecord(List<String> recordLines) {
   );
 }
 
-Map<String, FileCoverage> coverageByFile(String lcovReport) {
+String absoluteSourcePath(String sourcePath, String packageDirectory) {
+  final sourceFile = File(sourcePath);
+
+  if (sourceFile.isAbsolute) {
+    return sourcePath;
+  }
+
+  return File('$packageDirectory/$sourcePath').absolute.path;
+}
+
+Map<String, FileCoverage> coverageByFile(
+  String lcovReport,
+  String packageDirectory,
+) {
   final coverage = <String, FileCoverage>{};
 
   for (final record in lcovReport.split(endOfRecord)) {
@@ -85,7 +98,14 @@ Map<String, FileCoverage> coverageByFile(String lcovReport) {
     }
 
     final sourcePath = sourceLines.first.substring(sourceFileTag.length);
-    coverage[sourcePath] = coverageOfRecord(recordLines);
+    final sourceFile = File(absoluteSourcePath(sourcePath, packageDirectory));
+
+    if (!sourceFile.existsSync()) {
+      continue;
+    }
+
+    final resolvedPath = sourceFile.resolveSymbolicLinksSync();
+    coverage[resolvedPath] = coverageOfRecord(recordLines);
   }
 
   return coverage;
@@ -117,10 +137,15 @@ List<String> uncoveredLocations(String sourcePath, FileCoverage coverage) {
 
 Future<void> main(List<String> arguments) async {
   if (arguments.length != expectedArgumentCount) {
-    throw ArgumentError('expected <lcov report> <minimum percent>');
+    throw ArgumentError(
+      'expected <lcov report> <minimum percent> <package directory>',
+    );
   }
 
-  final measured = coverageByFile(File(arguments[0]).readAsStringSync());
+  final measured = coverageByFile(
+    File(arguments[0]).readAsStringSync(),
+    arguments[2],
+  );
   final minimum = int.parse(arguments[1]);
   final listing = await utf8.decodeStream(stdin);
   final sourceCoverage = <String, FileCoverage>{};

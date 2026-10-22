@@ -112,15 +112,19 @@ when = "pre-push"
   files at the repository root (the plugin's main file and `uninstall.php`):
   `linters`, `strict-typing`, `security-patterns` and `dead-code` check them
   with the package.
-- A Dart package lists `lib` and `tests` and keeps them resolved with
-  `dart pub get`. Its `analysis_options.yaml` includes
+- A Dart package lists `lib` and `tests` (or the Dart-style `test`, when the
+  package has `test` and no `tests`) and keeps them resolved with
+  `dart pub get`. A Flutter package (`sdk: flutter` in `pubspec.yaml`) runs
+  its coverage with `flutter test`. Its `analysis_options.yaml` includes
   `package:very_good_analysis/analysis_options.yaml` (a dev dependency) and
   keeps the strict modes on; turn `public_member_api_docs` off there if you
   write no doc comments. `dead-code` counts a declaration as used when the
   package's library exports it (`export 'src/sign.dart';`). `coverage` runs
   `dart test tests` (package:test 1.27+) with every library loaded, so a
   file no test imports counts as untested. `property-tests` wants four
-  kiri_check `property('<function> property <guarantee>', ...)` tests.
+  kiri_check `property('<function> property <guarantee>', ...)` tests; an
+  `@override` of a member the package never declares (a framework hook such as
+  `paint` or `dispose`) needs none.
   `security-patterns` has no Dart rules yet - semgrep's Dart support is
   experimental.
 

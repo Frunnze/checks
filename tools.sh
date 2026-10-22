@@ -212,15 +212,31 @@ package_root_files() {
         "$1" "$project_root"
 }
 
-tests_of() {
-    package=$(package_of "$1")
-
-    if [ "$package" = . ]; then
-        echo tests
+tests_folder_name_of() {
+    if [ -f "$1/pubspec.yaml" ] && [ -d "$1/test" ] && [ ! -d "$1/tests" ]
+    then
+        echo test
         return
     fi
 
-    echo "$package/tests"
+    echo tests
+}
+
+tests_of() {
+    package=$(package_of "$1")
+    tests_folder_name=$(tests_folder_name_of "$package")
+
+    if [ "$package" = . ]; then
+        echo "$tests_folder_name"
+        return
+    fi
+
+    echo "$package/$tests_folder_name"
+}
+
+is_flutter_package() {
+    grep -qsE '^[[:space:]]+sdk:[[:space:]]*flutter[[:space:]]*$' \
+        "$1/pubspec.yaml"
 }
 
 sources_and_tests() {

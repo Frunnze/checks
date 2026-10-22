@@ -1,3 +1,4 @@
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from check_support import (
     DART_CONFIGURATION,
     DART_PUBSPEC,
     HYPOTHESIS_SETTINGS,
+    TOOLKIT,
     dart_package,
     run_configured,
     stage_file,
@@ -25,6 +27,8 @@ SIGN_LIBRARY = (
 POSITIVE_EXPECTATION = "    expect(sign(1), 'positive');\n"
 NEGATIVE_EXPECTATION = "    expect(sign(-1), 'negative');\n"
 HALF_TESTED_BRANCH_PERCENT = 50
+COVERAGE_CHECK = TOOLKIT / "checks" / "stable" / "coverage" / "dart"
+SHORTFALL_FINDER = COVERAGE_CHECK / "coverage_shortfalls.dart"
 file_suffixes = st.from_regex(r"[a-z]{3,10}", fullmatch=True)
 wrong_results = st.from_regex(r"wrong[a-z]{0,6}", fullmatch=True)
 
@@ -142,3 +146,57 @@ def test_coverage_property_measures_only_the_listed_dart_folder(
     )
 
     assert returncode == 0, output
+
+
+
+def _relative_lcov_shortfalls(line_hits: list[int]) -> list[str]:
+    with tempfile.TemporaryDirectory() as directory:
+        package = Path(directory) / "app"
+        source = package / "lib" / "sign.dart"
+        source.parent.mkdir(parents=True)
+        _ = source.write_text(SIGN_LIBRARY, encoding="utf-8")
+        line_records = "".join(
+            f"DA:{line_number},{hits}\n"
+            for line_number, hits in enumerate(line_hits, start=1)
+        )
+        lcov_report = package / "lcov.info"
+        _ = lcov_report.write_text(
+            f"SF:lib/sign.dart\n{line_records}end_of_record\n",
+            encoding="utf-8",
+        )
+        finished = subprocess.run(
+            [
+                "dart",
+                str(SHORTFALL_FINDER),
+                str(lcov_report),
+                "100",
+                str(package),
+            ],
+            input=f"{source}\n",
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    return finished.stdout.splitlines()
+
+
+@HYPOTHESIS_SETTINGS
+@given(st.lists(st.integers(min_value=0, max_value=3), min_size=1, max_size=6))
+def test_shortfalls_property_read_package_relative_lcov_paths(
+    line_hits: list[int],
+) -> None:
+    shortfalls = _relative_lcov_shortfalls(line_hits)
+
+    unrun_lines = [
+        line_number
+        for line_number, hits in enumerate(line_hits, start=1)
+        if hits == 0
+    ]
+    reported_lines = [
+        int(shortfall.split(":")[1])
+        for shortfall in shortfalls
+        if shortfall.endswith("no test runs this line")
+    ]
+    assert reported_lines == unrun_lines
+    assert (shortfalls == []) == (unrun_lines == [])

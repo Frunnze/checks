@@ -17,6 +17,7 @@ from check_support import (
 
 FINDER = TOOLKIT / ".pub-cache" / "bin" / "property_test_coverage"
 SOURCE_DIRECTORY = "app/lib"
+TESTS_DIRECTORY = "app/tests"
 SOURCE = "app/lib/scheduler.dart"
 TESTS = "app/tests/scheduler_test.dart"
 KIRI_IMPORT = "import 'package:kiri_check/kiri_check.dart';\n"
@@ -49,7 +50,7 @@ def _report(root: Path, files: dict[str, str]) -> list[str]:
         _ = path.write_text(source, encoding="utf-8")
 
     finished = subprocess.run(
-        [str(FINDER), SOURCE_DIRECTORY],
+        [str(FINDER), SOURCE_DIRECTORY, TESTS_DIRECTORY],
         input="\n".join(files),
         capture_output=True,
         text=True,
@@ -221,3 +222,50 @@ def test_finder_property_needs_four_distinct_property_titles(
 
     is_covered = distinct_count >= 4
     assert (report == []) == is_covered
+
+
+@HYPOTHESIS_SETTINGS
+@given(names, st.booleans())
+def test_finder_property_skips_only_overrides_of_library_members(
+    name: str, is_own_member: bool
+) -> None:
+    own_interface = (
+        f"abstract class Ticker {{\n  int {name}(int value);\n}}\n"
+        if is_own_member
+        else ""
+    )
+    source = (
+        own_interface
+        + "class Clock extends Base {\n"
+        + "  @override\n"
+        + f"  int {name}(int value) => value + 1;\n"
+        + "}\n"
+    )
+    override_line = 6 if is_own_member else 3
+
+    report = _report_in_new_folder({SOURCE: source, TESTS: _tests("")})
+
+    expected = [_missing(name, override_line)] if is_own_member else []
+    assert report == expected
+
+
+@HYPOTHESIS_SETTINGS
+@given(names, st.sampled_from(("test", "tests")))
+def test_property_tests_property_reads_the_dart_test_folder_in_use(
+    name: str, tests_folder: str
+) -> None:
+    tests_file = f"app/{tests_folder}/scheduler_test.dart"
+    configuration = (
+        f'source_directories = ["app/lib", "app/{tests_folder}"]\n'
+        '[checks.property-tests]\nwhen = "pre-commit"\n'
+    )
+
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        dart_package(root, DART_PUBSPEC)
+        stage_file(root, SOURCE, f"int {name}(int value) => value;\n")
+        stage_file(root, tests_file, _tests(_properties(name)))
+
+        finished = run_configured(root, configuration, "property-tests")
+
+    assert finished.returncode == 0, finished.stderr

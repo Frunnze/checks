@@ -21,7 +21,7 @@ tested_directories=$(tested_sources "$@")
 
 findings=$(for source_directory in $tested_directories; do
     dart_files_in $(sources_and_tests "$source_directory") \
-        | "$finder" "$source_directory"
+        | "$finder" "$source_directory" "$(tests_of "$source_directory")"
 done)
 untested=$(printf '%s\n' "$findings" | reportable_findings)
 

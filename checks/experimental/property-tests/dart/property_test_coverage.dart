@@ -8,7 +8,6 @@ import 'package:path/path.dart' as path;
 import 'definitions.dart';
 import 'property_test_titles.dart';
 
-const String testsDirectoryName = 'tests';
 const String propertyMarker = ' property';
 const int minimumPropertyTests = 4;
 
@@ -55,13 +54,18 @@ bool isCovered(String name, Set<String> propertyTestTitles) {
 }
 
 List<UntestedDefinition> untestedIn(
+  CompilationUnit unit,
   String filePath,
   Set<String> propertyTestTitles,
+  Set<String> ownNames,
 ) {
-  final unit = parsedFile(filePath);
   final untested = <UntestedDefinition>[];
 
   for (final definition in definitionsIn(unit)) {
+    if (overridesLibraryMember(definition, ownNames)) {
+      continue;
+    }
+
     if (isCovered(definition.name, propertyTestTitles)) {
       continue;
     }
@@ -96,11 +100,8 @@ int compareLocations(UntestedDefinition left, UntestedDefinition right) {
 }
 
 Future<void> main(List<String> arguments) async {
-  final sourceDirectory = arguments.single;
-  final testsDirectory = path.join(
-    path.dirname(sourceDirectory),
-    testsDirectoryName,
-  );
+  final sourceDirectory = arguments[0];
+  final testsDirectory = arguments[1];
   final listing = await utf8.decodeStream(stdin);
   final sourcePaths = <String>[];
   final propertyTestTitles = <String>{};
@@ -117,11 +118,22 @@ Future<void> main(List<String> arguments) async {
     }
   }
 
-  final untested = <UntestedDefinition>[];
+  final sourceUnits = <String, CompilationUnit>{};
+  final ownNames = <String>{};
 
   for (final sourcePath in sourcePaths) {
-    untested.addAll(untestedIn(sourcePath, propertyTestTitles));
+    final unit = parsedFile(sourcePath);
+    sourceUnits[sourcePath] = unit;
+    ownNames.addAll(declaredNamesIn(unit));
   }
+
+  final untested = <UntestedDefinition>[];
+
+  sourceUnits.forEach((sourcePath, unit) {
+    untested.addAll(
+      untestedIn(unit, sourcePath, propertyTestTitles, ownNames),
+    );
+  });
 
   untested.sort(compareLocations);
 
