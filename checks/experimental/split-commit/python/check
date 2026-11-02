@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: split commits in python (one change, one transaction)"
+echo "checks: a commit between two writes saves half the change on failure"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/split_commits.py")
+splits=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$splits" \
+    "these commits split one change in two - a crash between them leaves" \
+    "it half saved; commit once, after the last write:"
