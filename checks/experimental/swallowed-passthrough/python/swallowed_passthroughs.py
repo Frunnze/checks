@@ -5,6 +5,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import NamedTuple, override
 
+NESTING_LIMIT = 100_000
+
 BROAD_EXCEPTIONS = frozenset({"Exception", "BaseException"})
 BASE_EXCEPTION = "BaseException"
 BASE_ONLY_EXCEPTIONS = frozenset(
@@ -344,6 +346,7 @@ def described(swallow: Swallow) -> str:
     return f"{swallow.handler} swallows {names}, which {passers} - {fix}"
 
 
+sys.setrecursionlimit(NESTING_LIMIT)
 source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
 for found_swallow in SwallowedPassthroughs().find_in(source_paths):
