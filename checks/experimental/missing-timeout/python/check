@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: missing timeouts in python (no client that can wait forever)"
+echo "checks: a network client whose library waits forever needs a timeout"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/missing_timeouts.py")
+missing=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$missing" \
+    "these clients wait forever on a stalled server - pass the timeout" \
+    "argument the message names:"
