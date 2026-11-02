@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: narrow cleanup handlers in python (cleanup for every error)"
+echo "checks: an except that releases and re-raises must catch everything"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/narrow_cleanup_handlers.py")
+narrow_handlers=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$narrow_handlers" \
+    "these handlers clean up for one error only and leak on any other -" \
+    "catch BaseException or move the cleanup to finally:"
