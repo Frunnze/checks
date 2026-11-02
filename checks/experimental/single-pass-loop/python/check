@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: single-pass loops in python (no loop that stops at item one)"
+echo "checks: an exit after a filter, a total or a search ends it at item one"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/single_pass_loops.py")
+loops=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$loops" \
+    "these loops only ever look at their first item - move the exit" \
+    "under its condition, or write next(iter(...)) if that is the intent:"
