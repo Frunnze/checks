@@ -7,6 +7,7 @@ from hypothesis import strategies as st
 
 from check_support import HYPOTHESIS_SETTINGS
 
+_DEEP_TERMS = 1000
 _FINDER = (
     Path(__file__).resolve().parents[2] / "checks" / "experimental"
     / "copied-operand" / "python" / "copied_operands.py"
@@ -116,3 +117,10 @@ def test_series_property_flags_a_repeat_after_a_step(
     assert _report_for(tmp_path, source) == [
         f"shapes.py:2: row[{indexes[repeat_at]}] - {_SERIES}"
     ]
+
+
+def test_survives_deeply_nested_code(tmp_path: Path) -> None:
+    terms = " + ".join(f"term_{index}" for index in range(_DEEP_TERMS))
+    source = f"def total():\n    return {terms}\n"
+
+    assert _report_for(tmp_path, source) == []

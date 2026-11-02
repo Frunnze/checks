@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, override
 
+NESTING_LIMIT = 100_000
+
 SELF_CANCELLING = (ast.Sub, ast.Div, ast.FloorDiv, ast.Mod)
 NAMED_PARTS = (ast.Attribute, ast.Subscript)
 CHAINED = (ast.Add, ast.Mult, ast.BitOr, ast.BitAnd)
@@ -210,6 +212,7 @@ class CopiedOperandFinder:
         return sorted(found)
 
 
+sys.setrecursionlimit(NESTING_LIMIT)
 source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
 for copied in CopiedOperandFinder().find_in(source_paths):
