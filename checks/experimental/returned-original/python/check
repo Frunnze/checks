@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: returned originals in python (no edited copy left behind)"
+echo "checks: a function that edits a copy must return the copy"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/returned_originals.py")
+originals=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$originals" \
+    "these functions return the original although they changed a copy" \
+    "of it - return the changed copy:"
