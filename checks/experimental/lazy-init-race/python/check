@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: lazy init race in python (test again under the lock)"
+echo "checks: a value tested before a lock must be tested again inside it"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/lazy_initialization_races.py")
+races=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$races" \
+    "these values are tested outside the lock and set inside it without" \
+    "a second test - test them again inside the lock:"
