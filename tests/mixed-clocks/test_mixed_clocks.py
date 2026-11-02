@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from check_support import HYPOTHESIS_SETTINGS
 
 _CHECKS = Path(__file__).resolve().parents[2] / "checks"
+_DEEP_TERMS = 1000
 _FINDER = (
     _CHECKS / "experimental" / "mixed-clocks" / "python" / "mixed_clocks.py"
 )
@@ -227,3 +228,10 @@ def test_clock_property_flags_only_two_different_clocks(
     report = _report_for(tmp_path, source)
 
     assert report == (expected if first_clock != second_clock else [])
+
+
+def test_survives_deeply_nested_code(tmp_path: Path) -> None:
+    terms = " + ".join(f"term_{index}" for index in range(_DEEP_TERMS))
+    source = f"def total():\n    return {terms}\n"
+
+    assert _report_for(tmp_path, source) == []

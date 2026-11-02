@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, override
 
+NESTING_LIMIT = 100_000
+
 WALL = "wall"
 MONOTONIC = "monotonic"
 PERFORMANCE = "perf_counter"
@@ -515,6 +517,7 @@ class MixedClocks:
         )
 
 
+sys.setrecursionlimit(NESTING_LIMIT)
 source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
 for mismatch in MixedClocks().find_in(source_paths):
