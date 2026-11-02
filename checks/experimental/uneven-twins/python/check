@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: uneven twins in python (no width = r - l, height = b - t + 1)"
+echo "checks: two parallel lines must adjust both axes the same way"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/uneven_twins.py")
+uneven=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$uneven" \
+    "these lines lack the abs() or +/- 1 their twin has - add it here" \
+    "or drop it from the twin:"
