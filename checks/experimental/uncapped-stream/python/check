@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: uncapped streams in python (cap a download while reading it)"
+echo "checks: a size check after the loop comes after the memory is gone"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/uncapped_streams.py")
+streams=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$streams" \
+    "these loops keep every chunk of a stream with no limit - check the" \
+    "size inside the loop and stop when it passes the cap:"
