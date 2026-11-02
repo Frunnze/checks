@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: unguarded state update in python (compare-and-set a status)"
+echo "checks: an UPDATE that sets a status must test that status in WHERE"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/unguarded_state_updates.py")
+unguarded_updates=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$unguarded_updates" \
+    "these updates overwrite a state another writer may have set - add" \
+    "the state you read to the WHERE (AND status = ...):"
