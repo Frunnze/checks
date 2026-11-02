@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: blocking calls in async python (no hidden sync I/O in handlers)"
+echo "checks: a request handler shares one event loop with every request"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/hidden_blocking_calls.py")
+blocking=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$blocking" \
+    "these calls wait on I/O on the event loop and stall every request -" \
+    "run them in a threadpool or make them async:"
