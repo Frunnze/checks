@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: failures reported as success in python (a failed save is False)"
+echo "checks: send() answering True from except hides every failed send"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/failures_as_success.py")
+masked=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$masked" \
+    "these actions report success when they fail - return False or let" \
+    "the error propagate:"
