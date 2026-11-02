@@ -19,6 +19,7 @@ CHECK_ORDER = (
     "dependency-inversion",
     "definition-names",
     "nested-definitions",
+    "float-drift",
     "duplicate-code",
     "dead-code",
     "linters",
