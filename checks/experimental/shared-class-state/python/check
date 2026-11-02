@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: shared class state in python (no class-level list fed by self)"
+echo "checks: a container on the class is one object for every instance"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/shared_class_containers.py")
+shared_containers=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$shared_containers" \
+    "these containers live on the class but change through self - create" \
+    "them per instance in __init__:"
