@@ -131,6 +131,37 @@ def test_passes_a_marker_only_compared_by_identity(tmp_path: Path) -> None:
     assert _report_for(tmp_path, {"help.py": source}) == []
 
 
+def test_reports_a_constant_compared_with_a_looked_up_value(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "CANCELLED = 'cancelled'\n"
+        "def is_cancelled(job_row: dict[str, str]) -> bool:\n"
+        "    return job_row.get('status') is CANCELLED\n"
+    )
+
+    assert _report_for(tmp_path, {"jobs.py": source}) == [
+        _finding(
+            "jobs.py:3",
+            "job_row.get('status') is CANCELLED",
+            "CANCELLED is a constant str",
+            "==",
+        )
+    ]
+
+
+def test_passes_a_lookup_whose_default_is_the_constant(
+    tmp_path: Path,
+) -> None:
+    source = (
+        "MISSING = '<missing>'\n"
+        "def has_option(options: dict[str, str], name: str) -> bool:\n"
+        "    return options.get(name, MISSING) is not MISSING\n"
+    )
+
+    assert _report_for(tmp_path, {"options.py": source}) == []
+
+
 def test_reports_values_made_fresh(tmp_path: Path) -> None:
     source = (
         "def same(label, text, number, code):\n"

@@ -32,6 +32,7 @@ EQUALITY_FOR: dict[type[ast.cmpop], str] = {ast.Is: "==", ast.IsNot: "!="}
 INSTANCE_NAMES = frozenset({"self", "cls"})
 SENTINEL_LOOKUPS = frozenset({"get", "getattr", "next", "pop"})
 LOOKUP_WITH_DEFAULT = 2
+VALUE_LOOKUP = "get"
 PLAIN_BASE = "object"
 PACKAGE_MODULE = "__init__"
 DEFINITION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
@@ -255,6 +256,20 @@ def is_sentinel_check(
     return False
 
 
+def is_looked_up_value(expression: ast.expr, constant: ast.expr) -> bool:
+    if not isinstance(expression, ast.Call):
+        return False
+
+    callee = expression.func
+
+    if not isinstance(callee, ast.Attribute) or callee.attr != VALUE_LOOKUP:
+        return False
+
+    marker = dotted_name(constant)
+
+    return all(dotted_name(default) != marker for default in expression.args)
+
+
 def is_plain_class(class_node: ast.ClassDef) -> bool:
     plain_bases = all(
         dotted_name(base) == PLAIN_BASE for base in class_node.bases
@@ -444,7 +459,9 @@ class FileComparisons:
         self, side: ast.expr, other: ast.expr, context: ScopeContext
     ) -> str:
         kind = self._constant_kind(side, context)
-        compared_by_value = ast.dump(other) in context.value_subjects
+        compared_by_value = ast.dump(
+            other
+        ) in context.value_subjects or is_looked_up_value(other, side)
 
         if kind and compared_by_value:
             return f"{ast.unparse(side)} is a constant {kind}"
