@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: mixed clocks in python (no time.time() against monotonic)"
+echo "checks: readings from two clocks never line up - deadlines misfire"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/mixed_clocks.py")
+mismatches=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$mismatches" \
+    "these values come from different clocks - read both from the same" \
+    "clock (time.monotonic() for deadlines and durations):"
