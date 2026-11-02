@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: unreachable branches in python (no shadowed elif or except)"
+echo "checks: a branch an earlier condition always wins over never runs"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/unreachable_branches.py")
+unreachable=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$unreachable" \
+    "these branches never run - put the narrower condition first or" \
+    "fix the condition:"
