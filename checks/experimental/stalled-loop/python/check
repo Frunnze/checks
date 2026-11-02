@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: stalled loops in python (every pass must move the loop on)"
+echo "checks: a continue before the counter moves spins the loop forever"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/stalled_loops.py")
+stalled=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$stalled" \
+    "these paths repeat the loop with the same state, so it never ends -" \
+    "advance the counter, cursor or queue before continue:"
