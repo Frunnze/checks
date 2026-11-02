@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: skipping breaks in python (no break where continue skips one)"
+echo "checks: a break meant to skip a repeat or an excluded item ends the loop"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/skipping_breaks.py")
+breaks=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$breaks" \
+    "these breaks end the whole loop where only one item should be" \
+    "skipped - use continue:"
