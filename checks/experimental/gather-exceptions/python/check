@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: gather exceptions in python (return_exceptions=True decides)"
+echo "checks: gather raises unless told to return, and returns BaseException"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/gather_exceptions.py")
+misused=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$misused" \
+    "these gather results expect exceptions that gather raises instead or" \
+    "that slip past an Exception test - pass return_exceptions=True or" \
+    "test BaseException:"
