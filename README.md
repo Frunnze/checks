@@ -73,6 +73,7 @@ enabled check over the whole repository.
 | `dependency-inversion` | Collaborators injected, not built | Python | own finder | experimental | finding text |
 | `definition-names` | No `and`/`or` in names | Python, TS | own finder | experimental | finding text |
 | `nested-definitions` | No function inside a function | Python, TS | own finder | experimental | finding text |
+| `crossed-names` | No `mobile=styles.tablet.gap` among items that each read their own value | Python | own finder | experimental | finding text |
 | `property-tests` | Four property tests per function | Python, TS, PHP, Dart | own finder | experimental | finding text |
 | `api-contract` | No generated request crashes an endpoint | Python | schemathesis | experimental | - |
 
