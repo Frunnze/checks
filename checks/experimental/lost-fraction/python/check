@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: lost fractions in python (no // result tested against 1.5)"
+echo "checks: a floor-divided value cannot meet a threshold with a fraction"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/lost_fractions.py")
+lost=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$lost" \
+    "these whole numbers are compared with fractions - divide with /" \
+    "so the fraction survives, or compare with a whole number:"
