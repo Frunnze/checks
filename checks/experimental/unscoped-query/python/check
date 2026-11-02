@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: unscoped queries in python (a known owner must scope the query)"
+echo "checks: get(doc_id, user_id) that ignores user_id serves anyone's row"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/unscoped_queries.py")
+queries=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$queries" \
+    "these queries get the caller's identity but do not filter by it -" \
+    "add the owner column to the WHERE:"
