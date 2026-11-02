@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: unchecked url fetches in python (no SSRF from a request url)"
+echo "checks: fetching a caller's url unchecked reaches internal services"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/unchecked_url_fetches.py")
+fetches=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$fetches" \
+    "these handlers fetch a URL the caller chose - check its host against" \
+    "an allowlist or block private addresses first:"
