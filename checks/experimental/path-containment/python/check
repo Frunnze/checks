@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: path containment in python (request paths stay in their folder)"
+echo "checks: a name like ../../etc/passwd escapes an unchecked join"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/path_containments.py")
+uncontained=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$uncontained" \
+    "these handlers open a path built from request input without keeping" \
+    "it inside its folder:"
