@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+. "$toolkit/tools.sh"
+
+echo "checks: fail-open handlers in python (a failed check must say no)"
+echo "checks: is_allowed() returning True from except lets errors through"
+
+findings=$(python_files_in "$@" \
+    | "$toolkit_python" "$(dirname "$0")/fail_open_handlers.py")
+handlers=$(printf '%s\n' "$findings" | reportable_findings)
+
+fail_on_findings "$handlers" \
+    "these checks answer 'allowed' when they break - fail closed:"
