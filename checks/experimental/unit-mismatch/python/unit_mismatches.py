@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import NamedTuple, override
 
+NESTING_LIMIT = 100_000
+
 UNIT_WORDS = {
     "ns": "ns",
     "nanoseconds": "ns",
@@ -327,6 +329,7 @@ class UnitMismatches:
         return sorted(found)
 
 
+sys.setrecursionlimit(NESTING_LIMIT)
 source_paths = [line for line in sys.stdin.read().split("\n") if line]
 
 for mismatch in UnitMismatches().find_in(source_paths):

@@ -8,6 +8,7 @@ from hypothesis import strategies as st
 from check_support import HYPOTHESIS_SETTINGS
 
 _CHECKS = Path(__file__).resolve().parents[2] / "checks"
+_DEEP_TERMS = 1000
 _FINDER = (
     _CHECKS / "experimental" / "unit-mismatch" / "python"
     / "unit_mismatches.py"
@@ -173,3 +174,10 @@ def test_unit_property_flags_only_a_sum_of_two_units(
         f"timing.py:3: other_{second} is in {_UNIT_SUFFIXES[second]} but"
         f" start_{first} is in {_UNIT_SUFFIXES[first]}"
     ]
+
+
+def test_survives_deeply_nested_code(tmp_path: Path) -> None:
+    terms = " + ".join(f"term_{index}" for index in range(_DEEP_TERMS))
+    source = f"def total():\n    return {terms}\n"
+
+    assert _report_for(tmp_path, source) == []
